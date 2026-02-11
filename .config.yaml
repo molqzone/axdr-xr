@@ -1,0 +1,208 @@
+GPIO:
+  PA15:
+    Label: SPI3_CS
+    Pull: GPIO_PULLUP
+    Signal: GPIO_Output
+  PB6:
+    Label: LCD_CS
+    Pull: GPIO_PULLDOWN
+    Signal: GPIO_Output
+  PB7:
+    Label: LCD_BLK
+    Pull: GPIO_PULLDOWN
+    Signal: GPIO_Output
+  PC13:
+    Label: R_EN
+    Signal: GPIO_Output
+  PC14-OSC32_IN:
+    Label: LCD_RES
+    Pull: GPIO_PULLUP
+    Signal: GPIO_Output
+  PC15-OSC32_OUT:
+    Label: LCD_DC
+    Pull: GPIO_PULLDOWN
+    Signal: GPIO_Output
+  PC6:
+    Pull: GPIO_PULLUP
+    Signal: GPIO_Input
+  PC7:
+    Pull: GPIO_PULLUP
+    Signal: GPIO_Input
+  PC8:
+    Pull: GPIO_PULLUP
+    Signal: GPIO_Input
+  PC9:
+    Pull: GPIO_PULLUP
+    Signal: GPIO_Input
+  PD2:
+    Label: SPI1_CSN
+    Pull: GPIO_PULLDOWN
+    Signal: GPIO_Output
+Peripherals:
+  TIM:
+    TIM1:
+      Mode: TIM_MASTERSLAVEMODE_DISABLE
+      Period: 4000
+      Prescaler: 0
+      Channels:
+        CH1N:
+          Label: TIM1
+          PWM: true
+          Complementary: true
+          DutyCycle: null
+        CH2N:
+          Label: TIM1
+          PWM: true
+          Complementary: true
+          DutyCycle: null
+        CH3N:
+          Label: TIM1
+          PWM: true
+          Complementary: true
+          DutyCycle: null
+    TIM3:
+      Prescaler: 0
+  ADC:
+    ADC1:
+      ContinuousMode: true
+      RegularConversions:
+      - ADC_CHANNEL_11
+      - ADC_CHANNEL_12
+      Channels:
+      - ADC_CHANNEL_11
+      - ADC_CHANNEL_12
+      DMA: ENABLE
+      dma:
+        dma: &id001
+          request_id: '3'
+          peripheral: ADC1
+          dma_type: DMA
+          stream: DMA1_Channel4
+          direction: MEMORY
+          periph_inc: false
+          mem_inc: false
+          periph_align: halfword
+          mem_align: halfword
+          mode: Circular
+          priority: Low
+    ADC2:
+      ContinuousMode: true
+      RegularConversions:
+      - ADC_CHANNEL_5
+      - ADC_CHANNEL_6
+      - ADC_CHANNEL_7
+      - ADC_CHANNEL_8
+      Channels:
+      - ADC_CHANNEL_5
+      - ADC_CHANNEL_6
+      - ADC_CHANNEL_7
+      - ADC_CHANNEL_8
+      DMA: ENABLE
+      dma:
+        dma: &id002
+          request_id: '2'
+          peripheral: ADC2
+          dma_type: DMA
+          stream: DMA1_Channel3
+          direction: MEMORY
+          periph_inc: false
+          mem_inc: false
+          periph_align: halfword
+          mem_align: halfword
+          mode: Circular
+          priority: Low
+  SPI:
+    SPI1:
+      BaudRate: 5.0 MBits/s
+      Direction: SPI_DIRECTION_2LINES
+      CLKPolarity: SPI_POLARITY_HIGH
+      CLKPhase: SPI_PHASE_2EDGE
+    SPI3:
+      BaudRate: 20.0 MBits/s
+      Direction: SPI_DIRECTION_2LINES
+  USART:
+    USART3:
+      BaudRate: 115200
+      Mode: Asynchronous
+      dma:
+        dma_rx: &id003
+          request_id: '0'
+          peripheral: USART3_RX
+          dma_type: DMA
+          stream: DMA1_Channel1
+          direction: MEMORY
+          periph_inc: false
+          mem_inc: false
+          periph_align: byte
+          mem_align: byte
+          mode: Normal
+          priority: Low
+        dma_tx: &id004
+          request_id: '1'
+          peripheral: USART3_TX
+          dma_type: DMA
+          stream: DMA1_Channel2
+          direction: PERIPH
+          periph_inc: false
+          mem_inc: false
+          periph_align: byte
+          mem_align: byte
+          mode: Normal
+          priority: Low
+      DMA_RX: ENABLE
+      DMA_RX_TYPE: DMA
+      DMA_TX: ENABLE
+      DMA_TX_TYPE: DMA
+  FDCAN:
+    FDCAN1:
+      NominalPrescaler: 1.0
+      FrameFormat: FDCAN_FRAME_FD_BRS
+      StdFilters: 16
+      ExtFilters: 8
+      BaudRate: '1000000'
+  USB:
+    USB:
+      DeviceSpeed: PCD_SPEED_FULL
+      IPParameters:
+      - DeviceSpeed
+      - phy_itface
+      - Sof_enable
+      - low_power_enable
+      - lpm_enable
+      - battery_charging_enable
+      Sof_enable: DISABLE
+      battery_charging_enable: DISABLE
+      low_power_enable: DISABLE
+      lpm_enable: DISABLE
+      phy_itface: PCD_PHY_EMBEDDED
+      DEVICE.CLASS_NAME_FS: CDC
+      DEVICE.IPParameters: VirtualMode,VirtualModeFS,CLASS_NAME_FS
+      DEVICE.VirtualMode: Cdc
+      DEVICE.VirtualModeFS: Cdc_FS
+    USB_DEVICE:
+      CLASS_NAME_FS: CDC
+      IPParameters:
+      - VirtualMode
+      - VirtualModeFS
+      - CLASS_NAME_FS
+      VirtualMode: Cdc
+      VirtualModeFS: Cdc_FS
+  I2C: {}
+DMA:
+  Requests:
+    '0': USART3_RX
+    '1': USART3_TX
+    '2': ADC2
+    '3': ADC1
+    sNb: '4'
+  Configurations:
+    ADC1_3: *id001
+    ADC2_2: *id002
+    USART3_RX_0: *id003
+    USART3_TX_1: *id004
+Timebase:
+  Source: SysTick
+  IRQ: null
+Mcu:
+  Family: STM32G4
+  Type: STM32G474RET6

@@ -1,0 +1,817 @@
+terminal_source: ''
+software_timer:
+  priority: 2
+  stack_depth: 1024
+SPI:
+  spi1:
+    tx_buffer_size: 32
+    rx_buffer_size: 32
+    dma_section: ''
+    dma_enable_min_size: 3
+  spi3:
+    tx_buffer_size: 32
+    rx_buffer_size: 32
+    dma_section: ''
+    dma_enable_min_size: 3
+USART:
+  usart3:
+    tx_buffer_size: 128
+    rx_buffer_size: 128
+    dma_section: ''
+    tx_queue_size: 5
+ADC:
+  adc1:
+    buffer_size: 32
+    dma_section: ''
+    vref: 3.3
+  adc2:
+    buffer_size: 32
+    dma_section: ''
+    vref: 3.3
+FDCAN:
+  FDCAN1:
+    queue_size: 5
+USB:
+  usb_device:
+    enable: false
+  usb_fs:
+    enable: false
+Terminal:
+  read_buff_size: 32
+  max_line_size: 32
+  max_arg_number: 5
+  max_history_number: 5
+SYSTEM: None
+FlashLayout:
+  model: STM32G474RET6
+  flash_base: '0x08000000'
+  flash_size_kb: 512
+  sectors:
+  - index: 0
+    address: '0x08000000'
+    size_kb: 2.0
+  - index: 1
+    address: '0x08000800'
+    size_kb: 2.0
+  - index: 2
+    address: '0x08001000'
+    size_kb: 2.0
+  - index: 3
+    address: '0x08001800'
+    size_kb: 2.0
+  - index: 4
+    address: '0x08002000'
+    size_kb: 2.0
+  - index: 5
+    address: '0x08002800'
+    size_kb: 2.0
+  - index: 6
+    address: '0x08003000'
+    size_kb: 2.0
+  - index: 7
+    address: '0x08003800'
+    size_kb: 2.0
+  - index: 8
+    address: '0x08004000'
+    size_kb: 2.0
+  - index: 9
+    address: '0x08004800'
+    size_kb: 2.0
+  - index: 10
+    address: '0x08005000'
+    size_kb: 2.0
+  - index: 11
+    address: '0x08005800'
+    size_kb: 2.0
+  - index: 12
+    address: '0x08006000'
+    size_kb: 2.0
+  - index: 13
+    address: '0x08006800'
+    size_kb: 2.0
+  - index: 14
+    address: '0x08007000'
+    size_kb: 2.0
+  - index: 15
+    address: '0x08007800'
+    size_kb: 2.0
+  - index: 16
+    address: '0x08008000'
+    size_kb: 2.0
+  - index: 17
+    address: '0x08008800'
+    size_kb: 2.0
+  - index: 18
+    address: '0x08009000'
+    size_kb: 2.0
+  - index: 19
+    address: '0x08009800'
+    size_kb: 2.0
+  - index: 20
+    address: '0x0800A000'
+    size_kb: 2.0
+  - index: 21
+    address: '0x0800A800'
+    size_kb: 2.0
+  - index: 22
+    address: '0x0800B000'
+    size_kb: 2.0
+  - index: 23
+    address: '0x0800B800'
+    size_kb: 2.0
+  - index: 24
+    address: '0x0800C000'
+    size_kb: 2.0
+  - index: 25
+    address: '0x0800C800'
+    size_kb: 2.0
+  - index: 26
+    address: '0x0800D000'
+    size_kb: 2.0
+  - index: 27
+    address: '0x0800D800'
+    size_kb: 2.0
+  - index: 28
+    address: '0x0800E000'
+    size_kb: 2.0
+  - index: 29
+    address: '0x0800E800'
+    size_kb: 2.0
+  - index: 30
+    address: '0x0800F000'
+    size_kb: 2.0
+  - index: 31
+    address: '0x0800F800'
+    size_kb: 2.0
+  - index: 32
+    address: '0x08010000'
+    size_kb: 2.0
+  - index: 33
+    address: '0x08010800'
+    size_kb: 2.0
+  - index: 34
+    address: '0x08011000'
+    size_kb: 2.0
+  - index: 35
+    address: '0x08011800'
+    size_kb: 2.0
+  - index: 36
+    address: '0x08012000'
+    size_kb: 2.0
+  - index: 37
+    address: '0x08012800'
+    size_kb: 2.0
+  - index: 38
+    address: '0x08013000'
+    size_kb: 2.0
+  - index: 39
+    address: '0x08013800'
+    size_kb: 2.0
+  - index: 40
+    address: '0x08014000'
+    size_kb: 2.0
+  - index: 41
+    address: '0x08014800'
+    size_kb: 2.0
+  - index: 42
+    address: '0x08015000'
+    size_kb: 2.0
+  - index: 43
+    address: '0x08015800'
+    size_kb: 2.0
+  - index: 44
+    address: '0x08016000'
+    size_kb: 2.0
+  - index: 45
+    address: '0x08016800'
+    size_kb: 2.0
+  - index: 46
+    address: '0x08017000'
+    size_kb: 2.0
+  - index: 47
+    address: '0x08017800'
+    size_kb: 2.0
+  - index: 48
+    address: '0x08018000'
+    size_kb: 2.0
+  - index: 49
+    address: '0x08018800'
+    size_kb: 2.0
+  - index: 50
+    address: '0x08019000'
+    size_kb: 2.0
+  - index: 51
+    address: '0x08019800'
+    size_kb: 2.0
+  - index: 52
+    address: '0x0801A000'
+    size_kb: 2.0
+  - index: 53
+    address: '0x0801A800'
+    size_kb: 2.0
+  - index: 54
+    address: '0x0801B000'
+    size_kb: 2.0
+  - index: 55
+    address: '0x0801B800'
+    size_kb: 2.0
+  - index: 56
+    address: '0x0801C000'
+    size_kb: 2.0
+  - index: 57
+    address: '0x0801C800'
+    size_kb: 2.0
+  - index: 58
+    address: '0x0801D000'
+    size_kb: 2.0
+  - index: 59
+    address: '0x0801D800'
+    size_kb: 2.0
+  - index: 60
+    address: '0x0801E000'
+    size_kb: 2.0
+  - index: 61
+    address: '0x0801E800'
+    size_kb: 2.0
+  - index: 62
+    address: '0x0801F000'
+    size_kb: 2.0
+  - index: 63
+    address: '0x0801F800'
+    size_kb: 2.0
+  - index: 64
+    address: '0x08020000'
+    size_kb: 2.0
+  - index: 65
+    address: '0x08020800'
+    size_kb: 2.0
+  - index: 66
+    address: '0x08021000'
+    size_kb: 2.0
+  - index: 67
+    address: '0x08021800'
+    size_kb: 2.0
+  - index: 68
+    address: '0x08022000'
+    size_kb: 2.0
+  - index: 69
+    address: '0x08022800'
+    size_kb: 2.0
+  - index: 70
+    address: '0x08023000'
+    size_kb: 2.0
+  - index: 71
+    address: '0x08023800'
+    size_kb: 2.0
+  - index: 72
+    address: '0x08024000'
+    size_kb: 2.0
+  - index: 73
+    address: '0x08024800'
+    size_kb: 2.0
+  - index: 74
+    address: '0x08025000'
+    size_kb: 2.0
+  - index: 75
+    address: '0x08025800'
+    size_kb: 2.0
+  - index: 76
+    address: '0x08026000'
+    size_kb: 2.0
+  - index: 77
+    address: '0x08026800'
+    size_kb: 2.0
+  - index: 78
+    address: '0x08027000'
+    size_kb: 2.0
+  - index: 79
+    address: '0x08027800'
+    size_kb: 2.0
+  - index: 80
+    address: '0x08028000'
+    size_kb: 2.0
+  - index: 81
+    address: '0x08028800'
+    size_kb: 2.0
+  - index: 82
+    address: '0x08029000'
+    size_kb: 2.0
+  - index: 83
+    address: '0x08029800'
+    size_kb: 2.0
+  - index: 84
+    address: '0x0802A000'
+    size_kb: 2.0
+  - index: 85
+    address: '0x0802A800'
+    size_kb: 2.0
+  - index: 86
+    address: '0x0802B000'
+    size_kb: 2.0
+  - index: 87
+    address: '0x0802B800'
+    size_kb: 2.0
+  - index: 88
+    address: '0x0802C000'
+    size_kb: 2.0
+  - index: 89
+    address: '0x0802C800'
+    size_kb: 2.0
+  - index: 90
+    address: '0x0802D000'
+    size_kb: 2.0
+  - index: 91
+    address: '0x0802D800'
+    size_kb: 2.0
+  - index: 92
+    address: '0x0802E000'
+    size_kb: 2.0
+  - index: 93
+    address: '0x0802E800'
+    size_kb: 2.0
+  - index: 94
+    address: '0x0802F000'
+    size_kb: 2.0
+  - index: 95
+    address: '0x0802F800'
+    size_kb: 2.0
+  - index: 96
+    address: '0x08030000'
+    size_kb: 2.0
+  - index: 97
+    address: '0x08030800'
+    size_kb: 2.0
+  - index: 98
+    address: '0x08031000'
+    size_kb: 2.0
+  - index: 99
+    address: '0x08031800'
+    size_kb: 2.0
+  - index: 100
+    address: '0x08032000'
+    size_kb: 2.0
+  - index: 101
+    address: '0x08032800'
+    size_kb: 2.0
+  - index: 102
+    address: '0x08033000'
+    size_kb: 2.0
+  - index: 103
+    address: '0x08033800'
+    size_kb: 2.0
+  - index: 104
+    address: '0x08034000'
+    size_kb: 2.0
+  - index: 105
+    address: '0x08034800'
+    size_kb: 2.0
+  - index: 106
+    address: '0x08035000'
+    size_kb: 2.0
+  - index: 107
+    address: '0x08035800'
+    size_kb: 2.0
+  - index: 108
+    address: '0x08036000'
+    size_kb: 2.0
+  - index: 109
+    address: '0x08036800'
+    size_kb: 2.0
+  - index: 110
+    address: '0x08037000'
+    size_kb: 2.0
+  - index: 111
+    address: '0x08037800'
+    size_kb: 2.0
+  - index: 112
+    address: '0x08038000'
+    size_kb: 2.0
+  - index: 113
+    address: '0x08038800'
+    size_kb: 2.0
+  - index: 114
+    address: '0x08039000'
+    size_kb: 2.0
+  - index: 115
+    address: '0x08039800'
+    size_kb: 2.0
+  - index: 116
+    address: '0x0803A000'
+    size_kb: 2.0
+  - index: 117
+    address: '0x0803A800'
+    size_kb: 2.0
+  - index: 118
+    address: '0x0803B000'
+    size_kb: 2.0
+  - index: 119
+    address: '0x0803B800'
+    size_kb: 2.0
+  - index: 120
+    address: '0x0803C000'
+    size_kb: 2.0
+  - index: 121
+    address: '0x0803C800'
+    size_kb: 2.0
+  - index: 122
+    address: '0x0803D000'
+    size_kb: 2.0
+  - index: 123
+    address: '0x0803D800'
+    size_kb: 2.0
+  - index: 124
+    address: '0x0803E000'
+    size_kb: 2.0
+  - index: 125
+    address: '0x0803E800'
+    size_kb: 2.0
+  - index: 126
+    address: '0x0803F000'
+    size_kb: 2.0
+  - index: 127
+    address: '0x0803F800'
+    size_kb: 2.0
+  - index: 128
+    address: '0x08040000'
+    size_kb: 2.0
+  - index: 129
+    address: '0x08040800'
+    size_kb: 2.0
+  - index: 130
+    address: '0x08041000'
+    size_kb: 2.0
+  - index: 131
+    address: '0x08041800'
+    size_kb: 2.0
+  - index: 132
+    address: '0x08042000'
+    size_kb: 2.0
+  - index: 133
+    address: '0x08042800'
+    size_kb: 2.0
+  - index: 134
+    address: '0x08043000'
+    size_kb: 2.0
+  - index: 135
+    address: '0x08043800'
+    size_kb: 2.0
+  - index: 136
+    address: '0x08044000'
+    size_kb: 2.0
+  - index: 137
+    address: '0x08044800'
+    size_kb: 2.0
+  - index: 138
+    address: '0x08045000'
+    size_kb: 2.0
+  - index: 139
+    address: '0x08045800'
+    size_kb: 2.0
+  - index: 140
+    address: '0x08046000'
+    size_kb: 2.0
+  - index: 141
+    address: '0x08046800'
+    size_kb: 2.0
+  - index: 142
+    address: '0x08047000'
+    size_kb: 2.0
+  - index: 143
+    address: '0x08047800'
+    size_kb: 2.0
+  - index: 144
+    address: '0x08048000'
+    size_kb: 2.0
+  - index: 145
+    address: '0x08048800'
+    size_kb: 2.0
+  - index: 146
+    address: '0x08049000'
+    size_kb: 2.0
+  - index: 147
+    address: '0x08049800'
+    size_kb: 2.0
+  - index: 148
+    address: '0x0804A000'
+    size_kb: 2.0
+  - index: 149
+    address: '0x0804A800'
+    size_kb: 2.0
+  - index: 150
+    address: '0x0804B000'
+    size_kb: 2.0
+  - index: 151
+    address: '0x0804B800'
+    size_kb: 2.0
+  - index: 152
+    address: '0x0804C000'
+    size_kb: 2.0
+  - index: 153
+    address: '0x0804C800'
+    size_kb: 2.0
+  - index: 154
+    address: '0x0804D000'
+    size_kb: 2.0
+  - index: 155
+    address: '0x0804D800'
+    size_kb: 2.0
+  - index: 156
+    address: '0x0804E000'
+    size_kb: 2.0
+  - index: 157
+    address: '0x0804E800'
+    size_kb: 2.0
+  - index: 158
+    address: '0x0804F000'
+    size_kb: 2.0
+  - index: 159
+    address: '0x0804F800'
+    size_kb: 2.0
+  - index: 160
+    address: '0x08050000'
+    size_kb: 2.0
+  - index: 161
+    address: '0x08050800'
+    size_kb: 2.0
+  - index: 162
+    address: '0x08051000'
+    size_kb: 2.0
+  - index: 163
+    address: '0x08051800'
+    size_kb: 2.0
+  - index: 164
+    address: '0x08052000'
+    size_kb: 2.0
+  - index: 165
+    address: '0x08052800'
+    size_kb: 2.0
+  - index: 166
+    address: '0x08053000'
+    size_kb: 2.0
+  - index: 167
+    address: '0x08053800'
+    size_kb: 2.0
+  - index: 168
+    address: '0x08054000'
+    size_kb: 2.0
+  - index: 169
+    address: '0x08054800'
+    size_kb: 2.0
+  - index: 170
+    address: '0x08055000'
+    size_kb: 2.0
+  - index: 171
+    address: '0x08055800'
+    size_kb: 2.0
+  - index: 172
+    address: '0x08056000'
+    size_kb: 2.0
+  - index: 173
+    address: '0x08056800'
+    size_kb: 2.0
+  - index: 174
+    address: '0x08057000'
+    size_kb: 2.0
+  - index: 175
+    address: '0x08057800'
+    size_kb: 2.0
+  - index: 176
+    address: '0x08058000'
+    size_kb: 2.0
+  - index: 177
+    address: '0x08058800'
+    size_kb: 2.0
+  - index: 178
+    address: '0x08059000'
+    size_kb: 2.0
+  - index: 179
+    address: '0x08059800'
+    size_kb: 2.0
+  - index: 180
+    address: '0x0805A000'
+    size_kb: 2.0
+  - index: 181
+    address: '0x0805A800'
+    size_kb: 2.0
+  - index: 182
+    address: '0x0805B000'
+    size_kb: 2.0
+  - index: 183
+    address: '0x0805B800'
+    size_kb: 2.0
+  - index: 184
+    address: '0x0805C000'
+    size_kb: 2.0
+  - index: 185
+    address: '0x0805C800'
+    size_kb: 2.0
+  - index: 186
+    address: '0x0805D000'
+    size_kb: 2.0
+  - index: 187
+    address: '0x0805D800'
+    size_kb: 2.0
+  - index: 188
+    address: '0x0805E000'
+    size_kb: 2.0
+  - index: 189
+    address: '0x0805E800'
+    size_kb: 2.0
+  - index: 190
+    address: '0x0805F000'
+    size_kb: 2.0
+  - index: 191
+    address: '0x0805F800'
+    size_kb: 2.0
+  - index: 192
+    address: '0x08060000'
+    size_kb: 2.0
+  - index: 193
+    address: '0x08060800'
+    size_kb: 2.0
+  - index: 194
+    address: '0x08061000'
+    size_kb: 2.0
+  - index: 195
+    address: '0x08061800'
+    size_kb: 2.0
+  - index: 196
+    address: '0x08062000'
+    size_kb: 2.0
+  - index: 197
+    address: '0x08062800'
+    size_kb: 2.0
+  - index: 198
+    address: '0x08063000'
+    size_kb: 2.0
+  - index: 199
+    address: '0x08063800'
+    size_kb: 2.0
+  - index: 200
+    address: '0x08064000'
+    size_kb: 2.0
+  - index: 201
+    address: '0x08064800'
+    size_kb: 2.0
+  - index: 202
+    address: '0x08065000'
+    size_kb: 2.0
+  - index: 203
+    address: '0x08065800'
+    size_kb: 2.0
+  - index: 204
+    address: '0x08066000'
+    size_kb: 2.0
+  - index: 205
+    address: '0x08066800'
+    size_kb: 2.0
+  - index: 206
+    address: '0x08067000'
+    size_kb: 2.0
+  - index: 207
+    address: '0x08067800'
+    size_kb: 2.0
+  - index: 208
+    address: '0x08068000'
+    size_kb: 2.0
+  - index: 209
+    address: '0x08068800'
+    size_kb: 2.0
+  - index: 210
+    address: '0x08069000'
+    size_kb: 2.0
+  - index: 211
+    address: '0x08069800'
+    size_kb: 2.0
+  - index: 212
+    address: '0x0806A000'
+    size_kb: 2.0
+  - index: 213
+    address: '0x0806A800'
+    size_kb: 2.0
+  - index: 214
+    address: '0x0806B000'
+    size_kb: 2.0
+  - index: 215
+    address: '0x0806B800'
+    size_kb: 2.0
+  - index: 216
+    address: '0x0806C000'
+    size_kb: 2.0
+  - index: 217
+    address: '0x0806C800'
+    size_kb: 2.0
+  - index: 218
+    address: '0x0806D000'
+    size_kb: 2.0
+  - index: 219
+    address: '0x0806D800'
+    size_kb: 2.0
+  - index: 220
+    address: '0x0806E000'
+    size_kb: 2.0
+  - index: 221
+    address: '0x0806E800'
+    size_kb: 2.0
+  - index: 222
+    address: '0x0806F000'
+    size_kb: 2.0
+  - index: 223
+    address: '0x0806F800'
+    size_kb: 2.0
+  - index: 224
+    address: '0x08070000'
+    size_kb: 2.0
+  - index: 225
+    address: '0x08070800'
+    size_kb: 2.0
+  - index: 226
+    address: '0x08071000'
+    size_kb: 2.0
+  - index: 227
+    address: '0x08071800'
+    size_kb: 2.0
+  - index: 228
+    address: '0x08072000'
+    size_kb: 2.0
+  - index: 229
+    address: '0x08072800'
+    size_kb: 2.0
+  - index: 230
+    address: '0x08073000'
+    size_kb: 2.0
+  - index: 231
+    address: '0x08073800'
+    size_kb: 2.0
+  - index: 232
+    address: '0x08074000'
+    size_kb: 2.0
+  - index: 233
+    address: '0x08074800'
+    size_kb: 2.0
+  - index: 234
+    address: '0x08075000'
+    size_kb: 2.0
+  - index: 235
+    address: '0x08075800'
+    size_kb: 2.0
+  - index: 236
+    address: '0x08076000'
+    size_kb: 2.0
+  - index: 237
+    address: '0x08076800'
+    size_kb: 2.0
+  - index: 238
+    address: '0x08077000'
+    size_kb: 2.0
+  - index: 239
+    address: '0x08077800'
+    size_kb: 2.0
+  - index: 240
+    address: '0x08078000'
+    size_kb: 2.0
+  - index: 241
+    address: '0x08078800'
+    size_kb: 2.0
+  - index: 242
+    address: '0x08079000'
+    size_kb: 2.0
+  - index: 243
+    address: '0x08079800'
+    size_kb: 2.0
+  - index: 244
+    address: '0x0807A000'
+    size_kb: 2.0
+  - index: 245
+    address: '0x0807A800'
+    size_kb: 2.0
+  - index: 246
+    address: '0x0807B000'
+    size_kb: 2.0
+  - index: 247
+    address: '0x0807B800'
+    size_kb: 2.0
+  - index: 248
+    address: '0x0807C000'
+    size_kb: 2.0
+  - index: 249
+    address: '0x0807C800'
+    size_kb: 2.0
+  - index: 250
+    address: '0x0807D000'
+    size_kb: 2.0
+  - index: 251
+    address: '0x0807D800'
+    size_kb: 2.0
+  - index: 252
+    address: '0x0807E000'
+    size_kb: 2.0
+  - index: 253
+    address: '0x0807E800'
+    size_kb: 2.0
+  - index: 254
+    address: '0x0807F000'
+    size_kb: 2.0
+  - index: 255
+    address: '0x0807F800'
+    size_kb: 2.0
