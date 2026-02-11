@@ -205,4 +205,4 @@ Timebase:
   IRQ: null
 Mcu:
   Family: STM32G4
-  Type: STM32G474RET6
+  Type: STM32G431RBT6

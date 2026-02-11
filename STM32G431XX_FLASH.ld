@@ -7,7 +7,7 @@
 **  Author		: STM32CubeMX
 **
 **  Abstract    : Linker script for STM32G431RBTx series
-**                128Kbytes FLASH and 128Kbytes RAM
+**                128Kbytes FLASH and 32Kbytes RAM
 **
 **                Set heap size, stack size and stack location according
 **                to application requirements.
@@ -55,7 +55,7 @@ ENTRY(Reset_Handler)
 /* Specify the memory areas */
 MEMORY
 {
-RAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 128K
+RAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 32K
 FLASH (rx)      : ORIGIN = 0x8000000, LENGTH = 128K
 }
 

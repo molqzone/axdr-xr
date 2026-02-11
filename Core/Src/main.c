@@ -29,6 +29,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "app_main.h"
 
 /* USER CODE END Includes */
 
@@ -104,6 +105,8 @@ int main(void)
   MX_FDCAN1_Init();
   MX_SPI3_Init();
   /* USER CODE BEGIN 2 */
+  /* Transfer control to application layer. app_main() is expected to run forever. */
+  app_main();
 
   /* USER CODE END 2 */
 

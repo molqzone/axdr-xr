@@ -1,0 +1,82 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "CMake: Configure Debug",
+      "type": "shell",
+      "command": "${env:USERPROFILE}/.vscode/extensions/stmicroelectronics.stm32cube-ide-build-cmake-1.43.0/resources/cube-cmake/win32/cube-cmake.exe",
+      "args": [
+        "--preset",
+        "Debug"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "CMake: Build Debug",
+      "type": "shell",
+      "command": "${env:USERPROFILE}/.vscode/extensions/stmicroelectronics.stm32cube-ide-build-cmake-1.43.0/resources/cube-cmake/win32/cube-cmake.exe",
+      "args": [
+        "--build",
+        "${workspaceFolder}/build/Debug",
+        "--"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "dependsOn": "CMake: Configure Debug",
+      "problemMatcher": [
+        "$gcc"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "OpenOCD: Flash Debug ELF (CMSIS-DAP)",
+      "type": "shell",
+      "command": "openocd",
+      "args": [
+        "-f",
+        "interface/cmsis-dap.cfg",
+        "-c",
+        "transport select swd",
+        "-f",
+        "target/stm32g4x.cfg",
+        "-c",
+        "adapter speed 4000",
+        "-c",
+        "program build/Debug/AxDr.elf reset exit"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "dependsOn": "CMake: Build Debug",
+      "problemMatcher": []
+    },
+    {
+      "label": "OpenOCD: Flash Only (CMSIS-DAP)",
+      "type": "shell",
+      "command": "openocd",
+      "args": [
+        "-f",
+        "interface/cmsis-dap.cfg",
+        "-c",
+        "transport select swd",
+        "-f",
+        "target/stm32g4x.cfg",
+        "-c",
+        "adapter speed 4000",
+        "-c",
+        "program build/Debug/AxDr.elf reset exit"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    }
+  ]
+}

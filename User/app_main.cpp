@@ -102,8 +102,11 @@ extern "C" void app_main(void) {
   // clang-format on
   // NOLINTEND
   /* User Code Begin 3 */
-  while(true) {
-    Thread::Sleep(UINT32_MAX);
+  while (true) {
+    R_EN.Write(true);
+    Thread::Sleep(500);
+    R_EN.Write(false);
+    Thread::Sleep(500);
   }
   /* User Code End 3 */
 }

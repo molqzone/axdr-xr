@@ -1,0 +1,57 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "STM32G431RB | OpenOCD + CMSIS-DAP",
+      "type": "cortex-debug",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "servertype": "openocd",
+      "serverpath": "openocd",
+      "armToolchainPath": "C:/Users/keruth/AppData/Local/stm32cube/bundles/gnu-tools-for-stm32/14.3.1+st.2/bin",
+      "gdbPath": "C:/Users/keruth/AppData/Local/stm32cube/bundles/gnu-tools-for-stm32/14.3.1+st.2/bin/arm-none-eabi-gdb.exe",
+      "objdumpPath": "C:/Users/keruth/AppData/Local/stm32cube/bundles/gnu-tools-for-stm32/14.3.1+st.2/bin/arm-none-eabi-objdump.exe",
+      "nmPath": "C:/Users/keruth/AppData/Local/stm32cube/bundles/gnu-tools-for-stm32/14.3.1+st.2/bin/arm-none-eabi-nm.exe",
+      "device": "STM32G431RBTx",
+      "interface": "swd",
+      "configFiles": [
+        "interface/cmsis-dap.cfg",
+        "target/stm32g4x.cfg"
+      ],
+      "openOCDLaunchCommands": [
+        "adapter speed 4000"
+      ],
+      "executable": "${workspaceFolder}/build/Debug/AxDr.elf",
+      "preLaunchTask": "CMake: Build Debug",
+      "breakAfterReset": true,
+      "runToEntryPoint": "app_main",
+      "showDevDebugOutput": "raw"
+    },
+    {
+      "name": "STM32G431RB | Flash Only + Debug",
+      "type": "cortex-debug",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "servertype": "openocd",
+      "serverpath": "openocd",
+      "armToolchainPath": "C:/Users/keruth/AppData/Local/stm32cube/bundles/gnu-tools-for-stm32/14.3.1+st.2/bin",
+      "gdbPath": "C:/Users/keruth/AppData/Local/stm32cube/bundles/gnu-tools-for-stm32/14.3.1+st.2/bin/arm-none-eabi-gdb.exe",
+      "objdumpPath": "C:/Users/keruth/AppData/Local/stm32cube/bundles/gnu-tools-for-stm32/14.3.1+st.2/bin/arm-none-eabi-objdump.exe",
+      "nmPath": "C:/Users/keruth/AppData/Local/stm32cube/bundles/gnu-tools-for-stm32/14.3.1+st.2/bin/arm-none-eabi-nm.exe",
+      "device": "STM32G431RBTx",
+      "interface": "swd",
+      "configFiles": [
+        "interface/cmsis-dap.cfg",
+        "target/stm32g4x.cfg"
+      ],
+      "openOCDLaunchCommands": [
+        "adapter speed 4000"
+      ],
+      "executable": "${workspaceFolder}/build/Debug/AxDr.elf",
+      "preLaunchTask": "OpenOCD: Flash Only (CMSIS-DAP)",
+      "breakAfterReset": true,
+      "runToEntryPoint": "app_main",
+      "showDevDebugOutput": "raw"
+    }
+  ]
+}
