@@ -1,3 +1,7 @@
 [submodule "Middlewares/Third_Party/LibXR"]
 	path = Middlewares/Third_Party/LibXR
 	url = https://github.com/molqzone/libxr.git
+[submodule "Modules/MT6701"]
+	path = Modules/MT6701
+	url = https://github.com/molqzone/MT6701.git
+	branch = main
