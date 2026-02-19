@@ -5,6 +5,13 @@
 	path = Modules/MT6701
 	url = https://github.com/verdancy-org/MT6701.git
 	branch = main
+[submodule "Middlewares/Third_Party/XRFOC"]
+	path = Middlewares/Third_Party/XRFOC
+	url = https://github.com/molqzone/XRFOC.git
+	branch = main
+[submodule "Middlewares/Third_Party/CMSIS-DSP"]
+	path = Middlewares/Third_Party/CMSIS-DSP
+	url = https://github.com/ARM-software/CMSIS-DSP
 [submodule "Middlewares/Third_Party/XRMath"]
 	path = Middlewares/Third_Party/XRMath
 	url = https://github.com/molqzone/XRMath
