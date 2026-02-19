@@ -11,7 +11,6 @@
       "armToolchainPath": "C:/Users/keruth/AppData/Local/stm32cube/bundles/gnu-tools-for-stm32/14.3.1+st.2/bin",
       "gdbPath": "C:/Users/keruth/AppData/Local/stm32cube/bundles/gnu-tools-for-stm32/14.3.1+st.2/bin/arm-none-eabi-gdb.exe",
       "objdumpPath": "C:/Users/keruth/AppData/Local/stm32cube/bundles/gnu-tools-for-stm32/14.3.1+st.2/bin/arm-none-eabi-objdump.exe",
-      "nmPath": "C:/Users/keruth/AppData/Local/stm32cube/bundles/gnu-tools-for-stm32/14.3.1+st.2/bin/arm-none-eabi-nm.exe",
       "device": "STM32G431RBTx",
       "interface": "swd",
       "configFiles": [
@@ -37,7 +36,6 @@
       "armToolchainPath": "C:/Users/keruth/AppData/Local/stm32cube/bundles/gnu-tools-for-stm32/14.3.1+st.2/bin",
       "gdbPath": "C:/Users/keruth/AppData/Local/stm32cube/bundles/gnu-tools-for-stm32/14.3.1+st.2/bin/arm-none-eabi-gdb.exe",
       "objdumpPath": "C:/Users/keruth/AppData/Local/stm32cube/bundles/gnu-tools-for-stm32/14.3.1+st.2/bin/arm-none-eabi-objdump.exe",
-      "nmPath": "C:/Users/keruth/AppData/Local/stm32cube/bundles/gnu-tools-for-stm32/14.3.1+st.2/bin/arm-none-eabi-nm.exe",
       "device": "STM32G431RBTx",
       "interface": "swd",
       "configFiles": [

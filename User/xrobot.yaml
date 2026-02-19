@@ -1,0 +1,8 @@
+global_settings:
+  monitor_sleep_ms: 2
+modules:
+- id: MT6701_0
+  name: MT6701
+  constructor_args:
+    spi_alias: mt6701_spi
+    cs_alias: mt6701_spi_cs

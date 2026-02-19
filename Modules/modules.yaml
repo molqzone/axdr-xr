@@ -1,2 +1,2 @@
-# XRobot module configuration example
 modules:
+- verdancy-org/BitsButtonXR@master

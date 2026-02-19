@@ -116,7 +116,36 @@ Peripherals:
       BaudRate: 5.0 MBits/s
       Direction: SPI_DIRECTION_2LINES
       CLKPolarity: SPI_POLARITY_HIGH
-      CLKPhase: SPI_PHASE_2EDGE
+      CLKPhase: SPI_PHASE_1EDGE
+      dma:
+        dma_rx: &id003
+          request_id: '4'
+          peripheral: SPI1_RX
+          dma_type: DMA
+          stream: DMA1_Channel5
+          direction: MEMORY
+          periph_inc: false
+          mem_inc: false
+          periph_align: byte
+          mem_align: byte
+          mode: Circular
+          priority: Low
+        dma_tx: &id004
+          request_id: '5'
+          peripheral: SPI1_TX
+          dma_type: DMA
+          stream: DMA1_Channel6
+          direction: PERIPH
+          periph_inc: false
+          mem_inc: false
+          periph_align: byte
+          mem_align: byte
+          mode: Circular
+          priority: Low
+      DMA_RX: ENABLE
+      DMA_RX_TYPE: DMA
+      DMA_TX: ENABLE
+      DMA_TX_TYPE: DMA
     SPI3:
       BaudRate: 20.0 MBits/s
       Direction: SPI_DIRECTION_2LINES
@@ -125,7 +154,7 @@ Peripherals:
       BaudRate: 115200
       Mode: Asynchronous
       dma:
-        dma_rx: &id003
+        dma_rx: &id005
           request_id: '0'
           peripheral: USART3_RX
           dma_type: DMA
@@ -137,7 +166,7 @@ Peripherals:
           mem_align: byte
           mode: Normal
           priority: Low
-        dma_tx: &id004
+        dma_tx: &id006
           request_id: '1'
           peripheral: USART3_TX
           dma_type: DMA
@@ -175,18 +204,6 @@ Peripherals:
       low_power_enable: DISABLE
       lpm_enable: DISABLE
       phy_itface: PCD_PHY_EMBEDDED
-      DEVICE.CLASS_NAME_FS: CDC
-      DEVICE.IPParameters: VirtualMode,VirtualModeFS,CLASS_NAME_FS
-      DEVICE.VirtualMode: Cdc
-      DEVICE.VirtualModeFS: Cdc_FS
-    USB_DEVICE:
-      CLASS_NAME_FS: CDC
-      IPParameters:
-      - VirtualMode
-      - VirtualModeFS
-      - CLASS_NAME_FS
-      VirtualMode: Cdc
-      VirtualModeFS: Cdc_FS
   I2C: {}
 DMA:
   Requests:
@@ -194,15 +211,33 @@ DMA:
     '1': USART3_TX
     '2': ADC2
     '3': ADC1
-    sNb: '4'
+    '4': SPI1_RX
+    '5': SPI1_TX
+    sNb: '6'
   Configurations:
     ADC1_3: *id001
     ADC2_2: *id002
-    USART3_RX_0: *id003
-    USART3_TX_1: *id004
+    SPI1_RX_4: *id003
+    SPI1_TX_5: *id004
+    USART3_RX_0: *id005
+    USART3_TX_1: *id006
 Timebase:
   Source: SysTick
   IRQ: null
 Mcu:
   Family: STM32G4
   Type: STM32G431RBT6
+FreeRTOS:
+  RTOS: FreeRTOS
+  Enabled: false
+  AllocationMethod: null
+  MemPoolSize: null
+  CorePresent: null
+  Tasks:
+    defaultTask:
+      Priority: '24'
+      StackSize: 128B
+      EntryFunction: StartDefaultTask
+      Type: Default
+  Heap: null
+  Features: []

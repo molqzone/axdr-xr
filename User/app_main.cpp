@@ -1,9 +1,19 @@
 #include "app_main.h"
 
+#include <array>
+#include <cstdarg>
+#include <cstdio>
+
 #include "cdc_uart.hpp"
+#include "controller.hpp"
+#include "cordic.h"
+#include "current.hpp"
+#include "inverter.hpp"
 #include "libxr.hpp"
 #include "main.h"
+#include "position.hpp"
 #include "stm32_adc.hpp"
+#include "stm32_cordic.hpp"
 #include "stm32_can.hpp"
 #include "stm32_canfd.hpp"
 #include "stm32_dac.hpp"
@@ -29,7 +39,6 @@ using namespace LibXR;
 extern ADC_HandleTypeDef hadc1;
 extern ADC_HandleTypeDef hadc2;
 extern FDCAN_HandleTypeDef hfdcan1;
-extern PCD_HandleTypeDef hpcd_USB_DEVICE;
 extern PCD_HandleTypeDef hpcd_USB_FS;
 extern SPI_HandleTypeDef hspi1;
 extern SPI_HandleTypeDef hspi3;
@@ -40,19 +49,312 @@ extern UART_HandleTypeDef huart3;
 /* DMA Resources */
 static uint16_t adc1_buf[32];
 static uint16_t adc2_buf[64];
+static uint8_t spi1_tx_buf[32];
+static uint8_t spi1_rx_buf[32];
 static uint8_t usart3_tx_buf[128];
 static uint8_t usart3_rx_buf[128];
+
+namespace
+{
+constexpr float TWO_PI = 6.28318530717958647692f;
+
+struct BenchPosition
+{
+  using SampleType = float;
+  float angle = 0.0f;
+  float delta = 0.00035f;
+
+  [[nodiscard]] float Read()
+  {
+    angle += delta;
+    if (angle >= TWO_PI)
+    {
+      angle -= TWO_PI;
+    }
+    return angle;
+  }
+};
+
+struct BenchCurrent
+{
+  using SampleType = LibXR::FOC::PhaseCurrentABC;
+  float phase = 0.0f;
+  float delta = 0.00042f;
+
+  [[nodiscard]] SampleType Read()
+  {
+    phase += delta;
+    if (phase >= TWO_PI)
+    {
+      phase -= TWO_PI;
+    }
+
+    constexpr float SHIFT = 2.09439510239319549231f;  // 2*pi/3
+    constexpr float AMP = 0.8f;
+    return {AMP * arm_sin_f32(phase), AMP * arm_sin_f32(phase - SHIFT),
+            AMP * arm_sin_f32(phase + SHIFT)};
+  }
+};
+
+struct BenchInverter
+{
+  float duty_acc = 0.0f;
+  LibXR::FOC::DutyUVW last_duty = {};
+
+  [[nodiscard]] LibXR::ErrorCode Enable(bool)
+  {
+    return LibXR::ErrorCode::OK;
+  }
+
+  [[nodiscard]] LibXR::ErrorCode Disable(bool)
+  {
+    return LibXR::ErrorCode::OK;
+  }
+
+  [[nodiscard]] LibXR::ErrorCode SetDuty(LibXR::FOC::DutyUVW duty, bool)
+  {
+    last_duty = duty;
+    duty_acc += duty.u + duty.v + duty.w;
+    return LibXR::ErrorCode::OK;
+  }
+};
+
+template <typename Fn>
+[[nodiscard]] uint32_t MeasureCycles(Fn&& fn, uint32_t loops)
+{
+  uint32_t primask = __get_PRIMASK();
+  __disable_irq();
+  __DSB();
+  __ISB();
+
+  DWT->CYCCNT = 0U;
+  uint32_t start = DWT->CYCCNT;
+  for (uint32_t i = 0; i < loops; ++i)
+  {
+    fn();
+  }
+  uint32_t end = DWT->CYCCNT;
+
+  __DSB();
+  __ISB();
+  if (primask == 0U)
+  {
+    __enable_irq();
+  }
+  return end - start;
+}
+
+void EnableDwtCycleCounter()
+{
+  CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+#if defined(DWT_LAR)
+  DWT->LAR = 0xC5ACCE55U;
+#endif
+  DWT->CYCCNT = 0U;
+  DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+}
+
+void RunFocPathBenchmark()
+{
+  using PositionWrapper = LibXR::FOC::Position<BenchPosition>;
+  using CurrentWrapper = LibXR::FOC::Current<BenchCurrent>;
+  using InverterWrapper = LibXR::FOC::Inverter<BenchInverter>;
+  using FocController = LibXR::FOC::Controller<PositionWrapper, CurrentWrapper, InverterWrapper>;
+
+  struct BenchRig
+  {
+    BenchPosition pos = {};
+    BenchCurrent cur = {};
+    BenchInverter inv = {};
+    PositionWrapper pos_wrap;
+    CurrentWrapper cur_wrap;
+    InverterWrapper inv_wrap;
+    FocController ctrl;
+
+    BenchRig()
+        : pos_wrap(pos), cur_wrap(cur), inv_wrap(inv, 24.0f), ctrl(pos_wrap, cur_wrap, inv_wrap)
+    {
+    }
+  };
+
+  FocController::Configuration cfg = {};
+  cfg.pole_pairs = 7.0f;
+  cfg.electrical_offset = 0.0f;
+  cfg.output_voltage_limit = 12.0f;
+  cfg.d_axis.kp = 0.2f;
+  cfg.d_axis.ki = 4.0f;
+  cfg.d_axis.integral_limit = 3.0f;
+  cfg.d_axis.output_limit = 6.0f;
+  cfg.q_axis.kp = 0.2f;
+  cfg.q_axis.ki = 4.0f;
+  cfg.q_axis.integral_limit = 3.0f;
+  cfg.q_axis.output_limit = 6.0f;
+
+  auto config_controller = [&](FocController& ctrl)
+  {
+    ctrl.SetConfig(cfg);
+    ctrl.SetTargetIq(1.0f);
+    ctrl.SetTargetId(0.0f);
+  };
+
+  constexpr std::array<uint32_t, 7> WAIT_CYCLES_LIST = {0U, 4U, 8U, 16U, 32U, 64U, 128U};
+
+  constexpr uint32_t WARMUP_LOOPS = 2000U;
+  constexpr uint32_t TEST_LOOPS = 20000U;
+  constexpr float DT = 0.00005f;  // 20kHz control period
+
+  BenchRig sw_rig;
+  config_controller(sw_rig.ctrl);
+  for (uint32_t i = 0; i < WARMUP_LOOPS; ++i)
+  {
+    (void)sw_rig.ctrl.Step(DT, false);
+  }
+
+  EnableDwtCycleCounter();
+  uint32_t sw_total = MeasureCycles(
+      [&]()
+      {
+        (void)sw_rig.ctrl.Step(DT, false);
+      },
+      TEST_LOOPS);
+
+  uint32_t sw_avg = sw_total / TEST_LOOPS;
+
+  auto print_line = [](const char* fmt, ...)
+  {
+    char line[192] = {};
+    va_list args;
+    va_start(args, fmt);
+    int len = std::vsnprintf(line, sizeof(line), fmt, args);
+    va_end(args);
+    if (len > 0)
+    {
+      if (len >= static_cast<int>(sizeof(line)))
+      {
+        len = static_cast<int>(sizeof(line) - 1U);
+      }
+      (void)HAL_UART_Transmit(&huart3, reinterpret_cast<uint8_t*>(line),
+                              static_cast<uint16_t>(len), 1000U);
+    }
+  };
+
+  LibXR::STDIO::Printf("[FOC BENCH] loops=%lu\r\n", static_cast<unsigned long>(TEST_LOOPS));
+  LibXR::STDIO::Printf("[FOC BENCH] step(cmsis): total=%lu avg=%lu cycles duty_acc=%.6f\r\n",
+                       static_cast<unsigned long>(sw_total), static_cast<unsigned long>(sw_avg),
+                       sw_rig.inv.duty_acc);
+
+  print_line("[FOC BENCH] loops=%lu\r\n", static_cast<unsigned long>(TEST_LOOPS));
+  print_line("[FOC BENCH] step(cmsis): total=%lu avg=%lu cycles duty_acc=%.6f\r\n",
+             static_cast<unsigned long>(sw_total), static_cast<unsigned long>(sw_avg),
+             static_cast<double>(sw_rig.inv.duty_acc));
+
+  uint32_t best_wait_cycles = 0U;
+  uint32_t best_cd_total = 0U;
+  uint32_t best_cd_avg = 0xFFFFFFFFU;
+  float best_duty_acc = 0.0f;
+
+  for (uint32_t wait_cycles : WAIT_CYCLES_LIST)
+  {
+    BenchRig cd_rig;
+    config_controller(cd_rig.ctrl);
+
+    LibXR::Math::STM32CordicConfig cordic_cfg = {};
+    cordic_cfg.hcordic = &hcordic;
+    cordic_cfg.precision = LL_CORDIC_PRECISION_6CYCLES;
+    cordic_cfg.trig_scale = LL_CORDIC_SCALE_0;
+    cordic_cfg.atan2_scale = LL_CORDIC_SCALE_0;
+    cordic_cfg.wait_cycles = wait_cycles;
+
+    LibXR::Math::STM32Cordic cordic(cordic_cfg);
+    cordic.ConfigureSinCosMode();
+
+    for (uint32_t i = 0; i < WARMUP_LOOPS; ++i)
+    {
+      (void)cd_rig.ctrl.StepWithTrig(DT, false, cordic);
+    }
+
+    uint32_t cd_total = MeasureCycles(
+        [&]()
+        {
+          (void)cd_rig.ctrl.StepWithTrig(DT, false, cordic);
+        },
+        TEST_LOOPS);
+
+    uint32_t cd_avg = cd_total / TEST_LOOPS;
+    float speedup = (cd_avg > 0U) ? (static_cast<float>(sw_avg) / static_cast<float>(cd_avg))
+                                  : 0.0f;
+
+    LibXR::STDIO::Printf(
+        "[FOC BENCH] step_with_trig(cordic,wait=%lu): total=%lu avg=%lu cycles duty_acc=%.6f speedup(cmsis/cordic)=%.3f\r\n",
+        static_cast<unsigned long>(wait_cycles), static_cast<unsigned long>(cd_total),
+        static_cast<unsigned long>(cd_avg), cd_rig.inv.duty_acc, speedup);
+    print_line(
+        "[FOC BENCH] step_with_trig(cordic,wait=%lu): total=%lu avg=%lu cycles duty_acc=%.6f speedup(cmsis/cordic)=%.3f\r\n",
+        static_cast<unsigned long>(wait_cycles), static_cast<unsigned long>(cd_total),
+        static_cast<unsigned long>(cd_avg), static_cast<double>(cd_rig.inv.duty_acc),
+        static_cast<double>(speedup));
+
+    if (cd_avg < best_cd_avg)
+    {
+      best_wait_cycles = wait_cycles;
+      best_cd_total = cd_total;
+      best_cd_avg = cd_avg;
+      best_duty_acc = cd_rig.inv.duty_acc;
+    }
+  }
+
+  if (best_cd_avg != 0xFFFFFFFFU)
+  {
+    float best_speedup = (best_cd_avg > 0U)
+                             ? (static_cast<float>(sw_avg) / static_cast<float>(best_cd_avg))
+                             : 0.0f;
+    float delta_percent = (sw_avg > 0U)
+                              ? ((static_cast<float>(sw_avg) - static_cast<float>(best_cd_avg)) *
+                                 100.0f / static_cast<float>(sw_avg))
+                              : 0.0f;
+
+    LibXR::STDIO::Printf(
+        "[FOC BENCH] best_cordic_wait=%lu total=%lu avg=%lu cycles duty_acc=%.6f speedup(cmsis/cordic)=%.3f\r\n",
+        static_cast<unsigned long>(best_wait_cycles), static_cast<unsigned long>(best_cd_total),
+        static_cast<unsigned long>(best_cd_avg), best_duty_acc, best_speedup);
+
+    print_line(
+        "[FOC BENCH] best_cordic_wait=%lu total=%lu avg=%lu cycles duty_acc=%.6f speedup(cmsis/cordic)=%.3f\r\n",
+        static_cast<unsigned long>(best_wait_cycles), static_cast<unsigned long>(best_cd_total),
+        static_cast<unsigned long>(best_cd_avg), static_cast<double>(best_duty_acc),
+        static_cast<double>(best_speedup));
+
+    if (best_cd_avg < sw_avg)
+    {
+      LibXR::STDIO::Printf("[FOC BENCH] verdict: CORDIC faster by %.2f%%\r\n", delta_percent);
+      print_line("[FOC BENCH] verdict: CORDIC faster by %.2f%%\r\n",
+                 static_cast<double>(delta_percent));
+    }
+    else if (best_cd_avg > sw_avg)
+    {
+      float slower_percent = -delta_percent;
+      LibXR::STDIO::Printf("[FOC BENCH] verdict: CORDIC slower by %.2f%%\r\n", slower_percent);
+      print_line("[FOC BENCH] verdict: CORDIC slower by %.2f%%\r\n",
+                 static_cast<double>(slower_percent));
+    }
+    else
+    {
+      LibXR::STDIO::Printf("[FOC BENCH] verdict: tie\r\n");
+      print_line("[FOC BENCH] verdict: tie\r\n");
+    }
+  }
+}
+}  // namespace
 
 extern "C" void app_main(void) {
   // clang-format on
   // NOLINTEND
   /* User Code Begin 2 */
-  
   /* User Code End 2 */
   // clang-format off
   // NOLINTBEGIN
   STM32Timebase timebase;
-  PlatformInit();
+  PlatformInit(2, 1024);
   STM32PowerManager power_manager;
 
   /* GPIO Configuration */
@@ -88,7 +390,7 @@ extern "C" void app_main(void) {
   STM32PWM pwm_tim1_ch2n(&htim1, TIM_CHANNEL_2, true);
   STM32PWM pwm_tim1_ch3n(&htim1, TIM_CHANNEL_3, true);
 
-  STM32SPI spi1(&hspi1, {nullptr, 0}, {nullptr, 0}, 3);
+  STM32SPI spi1(&hspi1, spi1_rx_buf, spi1_tx_buf, 2);
 
   STM32SPI spi3(&hspi3, {nullptr, 0}, {nullptr, 0}, 3);
 
@@ -102,11 +404,10 @@ extern "C" void app_main(void) {
   // clang-format on
   // NOLINTEND
   /* User Code Begin 3 */
-  while (true) {
-    R_EN.Write(true);
-    Thread::Sleep(500);
-    R_EN.Write(false);
-    Thread::Sleep(500);
+  RunFocPathBenchmark();
+  while(true) {
+    Thread::Sleep(UINT32_MAX);
   }
+
   /* User Code End 3 */
 }
