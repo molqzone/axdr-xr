@@ -4,6 +4,7 @@
 #include <cstdarg>
 #include <cstdio>
 
+#include "arm_math.h"
 #include "cdc_uart.hpp"
 #include "controller.hpp"
 #include "cordic.h"
@@ -89,10 +90,16 @@ struct BenchCurrent
       phase -= TWO_PI;
     }
 
-    constexpr float SHIFT = 2.09439510239319549231f;  // 2*pi/3
+    constexpr float HALF = 0.5f;
+    constexpr float SQRT3_OVER_2 = 0.8660254037844386f;
     constexpr float AMP = 0.8f;
-    return {AMP * arm_sin_f32(phase), AMP * arm_sin_f32(phase - SHIFT),
-            AMP * arm_sin_f32(phase + SHIFT)};
+    const float sin_phase = arm_sin_f32(phase);
+    const float cos_phase = arm_cos_f32(phase);
+
+    const float phase_a = AMP * sin_phase;
+    const float phase_b = AMP * (-HALF * sin_phase - SQRT3_OVER_2 * cos_phase);
+    const float phase_c = AMP * (-HALF * sin_phase + SQRT3_OVER_2 * cos_phase);
+    return {phase_a, phase_b, phase_c};
   }
 };
 
@@ -270,13 +277,13 @@ void RunFocPathBenchmark()
 
     for (uint32_t i = 0; i < WARMUP_LOOPS; ++i)
     {
-      (void)cd_rig.ctrl.StepWithTrig(DT, false, cordic);
+      (void)cd_rig.ctrl.StepWithTrigNoConfig(DT, false, cordic);
     }
 
     uint32_t cd_total = MeasureCycles(
         [&]()
         {
-          (void)cd_rig.ctrl.StepWithTrig(DT, false, cordic);
+          (void)cd_rig.ctrl.StepWithTrigNoConfig(DT, false, cordic);
         },
         TEST_LOOPS);
 
@@ -285,11 +292,11 @@ void RunFocPathBenchmark()
                                   : 0.0f;
 
     LibXR::STDIO::Printf(
-        "[FOC BENCH] step_with_trig(cordic,wait=%lu): total=%lu avg=%lu cycles duty_acc=%.6f speedup(cmsis/cordic)=%.3f\r\n",
+        "[FOC BENCH] step_with_trig_noconfig(cordic,wait=%lu): total=%lu avg=%lu cycles duty_acc=%.6f speedup(cmsis/cordic)=%.3f\r\n",
         static_cast<unsigned long>(wait_cycles), static_cast<unsigned long>(cd_total),
         static_cast<unsigned long>(cd_avg), cd_rig.inv.duty_acc, speedup);
     print_line(
-        "[FOC BENCH] step_with_trig(cordic,wait=%lu): total=%lu avg=%lu cycles duty_acc=%.6f speedup(cmsis/cordic)=%.3f\r\n",
+        "[FOC BENCH] step_with_trig_noconfig(cordic,wait=%lu): total=%lu avg=%lu cycles duty_acc=%.6f speedup(cmsis/cordic)=%.3f\r\n",
         static_cast<unsigned long>(wait_cycles), static_cast<unsigned long>(cd_total),
         static_cast<unsigned long>(cd_avg), static_cast<double>(cd_rig.inv.duty_acc),
         static_cast<double>(speedup));

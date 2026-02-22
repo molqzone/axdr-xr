@@ -15,6 +15,10 @@
     {
       "name": "st-arm-clangd",
       "version": "^19.1.2+st.3"
+    },
+    {
+      "name": "st-arm-clang-hybrid-19_1_6-description",
+      "version": "0.0.6+st.1"
     }
   ]
 }

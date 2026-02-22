@@ -23,6 +23,22 @@
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release"
             }
+        },
+        {
+            "name": "Perf",
+            "inherits": "default",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_C_FLAGS_RELEASE": "-O3 -g0",
+                "CMAKE_CXX_FLAGS_RELEASE": "-O3 -g0"
+            }
+        },
+        {
+            "name": "PerfLTO",
+            "inherits": "Perf",
+            "cacheVariables": {
+                "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON"
+            }
         }
     ],
     "buildPresets": [
@@ -33,6 +49,14 @@
         {
             "name": "Release",
             "configurePreset": "Release"
+        },
+        {
+            "name": "Perf",
+            "configurePreset": "Perf"
+        },
+        {
+            "name": "PerfLTO",
+            "configurePreset": "PerfLTO"
         }
     ]
 }

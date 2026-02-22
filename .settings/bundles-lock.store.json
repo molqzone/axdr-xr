@@ -194,6 +194,10 @@
       "selected_by": [
         {
           "name": "st-arm-clang-hybrid-19_1_6-description",
+          "version": "0.0.6+st.1"
+        },
+        {
+          "name": "st-arm-clang-hybrid-19_1_6-description",
           "version": ">=0.0.1"
         }
       ]
