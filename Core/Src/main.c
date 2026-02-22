@@ -20,7 +20,6 @@
 #include "main.h"
 #include "cmsis_os.h"
 #include "adc.h"
-#include "cordic.h"
 #include "crc.h"
 #include "dma.h"
 #include "fdcan.h"
@@ -107,7 +106,6 @@ int main(void)
   MX_USART3_UART_Init();
   MX_FDCAN1_Init();
   MX_SPI3_Init();
-  MX_CORDIC_Init();
   MX_USB_PCD_Init();
   MX_CRC_Init();
   /* USER CODE BEGIN 2 */

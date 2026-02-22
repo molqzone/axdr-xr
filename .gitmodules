@@ -12,10 +12,6 @@
 [submodule "Middlewares/Third_Party/CMSIS-DSP"]
 	path = Middlewares/Third_Party/CMSIS-DSP
 	url = https://github.com/ARM-software/CMSIS-DSP
-[submodule "Middlewares/Third_Party/XRMath"]
-	path = Middlewares/Third_Party/XRMath
-	url = https://github.com/molqzone/XRMath
-	branch = main
 [submodule "Middlewares/Third_Party/librat"]
 	path = Middlewares/Third_Party/librat
 	url = https://github.com/molqzone/librat

@@ -38,7 +38,6 @@
 
   #define HAL_ADC_MODULE_ENABLED
 /*#define HAL_COMP_MODULE_ENABLED   */
-#define HAL_CORDIC_MODULE_ENABLED
 #define HAL_CRC_MODULE_ENABLED
 /*#define HAL_CRYP_MODULE_ENABLED   */
 /*#define HAL_DAC_MODULE_ENABLED   */
@@ -80,7 +79,6 @@
   */
 #define USE_HAL_ADC_REGISTER_CALLBACKS        0U
 #define USE_HAL_COMP_REGISTER_CALLBACKS       0U
-#define USE_HAL_CORDIC_REGISTER_CALLBACKS     0U
 #define USE_HAL_CRYP_REGISTER_CALLBACKS       0U
 #define USE_HAL_DAC_REGISTER_CALLBACKS        0U
 #define USE_HAL_EXTI_REGISTER_CALLBACKS       0U
@@ -231,10 +229,6 @@ The real value may vary depending on the variations in voltage and temperature.*
 #ifdef HAL_COMP_MODULE_ENABLED
 #include "stm32g4xx_hal_comp.h"
 #endif /* HAL_COMP_MODULE_ENABLED */
-
-#ifdef HAL_CORDIC_MODULE_ENABLED
-#include "stm32g4xx_hal_cordic.h"
-#endif /* HAL_CORDIC_MODULE_ENABLED */
 
 #ifdef HAL_CRC_MODULE_ENABLED
 #include "stm32g4xx_hal_crc.h"

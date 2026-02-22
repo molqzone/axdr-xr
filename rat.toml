@@ -15,7 +15,6 @@ bin = ""
 
 [generation]
 out_dir = "User"
-toml_name = "rat_gen.toml"
 header_name = "rat_gen.h"
 
 [rttd]

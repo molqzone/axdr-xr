@@ -1,12 +1,10 @@
 #include "app_main.h"
 
-#include <array>
 #include <cstdarg>
 #include <cstdio>
 
 #include "cdc_uart.hpp"
 #include "controller.hpp"
-#include "cordic.h"
 #include "current.hpp"
 #include "dumb/dumb_current.hpp"
 #include "dumb/dumb_position.hpp"
@@ -22,7 +20,6 @@
 #include "stm32_adc.hpp"
 #include "stm32_can.hpp"
 #include "stm32_canfd.hpp"
-#include "stm32_cordic.hpp"
 #include "stm32_dac.hpp"
 #include "stm32_flash.hpp"
 #include "stm32_gpio.hpp"
@@ -74,6 +71,9 @@ struct RatFocHeartbeat
   float duty_u = 0.0f;
   float duty_v = 0.0f;
   float duty_w = 0.0f;
+  uint32_t step_avg_cycles = 0u;
+  uint32_t target_cycles = 0u;
+  uint32_t target_met = 0u;
 };
 
 struct DumbFocRuntime
@@ -83,9 +83,13 @@ struct DumbFocRuntime
   using InverterWrapper = LibXR::FOC::Inverter<LibXR::FOC::STM32Inverter>;
   using FocController = LibXR::FOC::Controller<PositionWrapper, CurrentWrapper, InverterWrapper>;
 
+  struct BenchmarkResult
+  {
+    uint32_t step_avg_cycles = 0u;
+  };
+
   explicit DumbFocRuntime(TIM_HandleTypeDef* htim, float bus_voltage)
-      : inverter_handle(htim, bus_voltage),
-        position_wrap(position),
+      : inverter_handle(htim, bus_voltage), position_wrap(position),
         current_wrap(current),
         inverter_wrap(inverter_handle, bus_voltage),
         controller(position_wrap, current_wrap, inverter_wrap)
@@ -95,7 +99,7 @@ struct DumbFocRuntime
   [[nodiscard]] LibXR::ErrorCode Init()
   {
     position.SetAngle(0.0f);
-    position.SetDelta(0.00035f);
+    position.SetDelta(0.00490f);
     current.SetPhase(0.0f);
     current.SetDelta(0.00042f);
     current.SetAmplitude(0.8f);
@@ -112,29 +116,41 @@ struct DumbFocRuntime
     }
 
     FocController::Configuration cfg = {};
-    cfg.pole_pairs = 7.0f;
+    cfg.pole_pairs = 1.0f;
     cfg.electrical_offset = 0.0f;
     cfg.output_voltage_limit = 12.0f;
-    cfg.d_axis.kp = 0.2f;
-    cfg.d_axis.ki = 4.0f;
-    cfg.d_axis.integral_limit = 3.0f;
-    cfg.d_axis.output_limit = 6.0f;
+    cfg.d_axis.kp = 0.0f;
+    cfg.d_axis.ki = 0.0f;
+    cfg.d_axis.integral_limit = 0.0f;
+    cfg.d_axis.output_limit = 0.0f;
     cfg.q_axis.kp = 0.2f;
-    cfg.q_axis.ki = 4.0f;
-    cfg.q_axis.integral_limit = 3.0f;
+    cfg.q_axis.ki = 0.0f;
+    cfg.q_axis.integral_limit = 0.0f;
     cfg.q_axis.output_limit = 6.0f;
     controller.SetConfig(cfg);
-    controller.SetTargetIq(1.0f);
+    controller.SetTargetIq(2.0f);
     controller.SetTargetId(0.0f);
 
-    return controller.EnablePowerStage(false);
+    const LibXR::ErrorCode enable_ret = controller.EnablePowerStage(false);
+    if (enable_ret != LibXR::ErrorCode::OK)
+    {
+      return enable_ret;
+    }
+
+    return CalibrateStepCycles(2000U, 20000U, 0.00005f);
   }
 
   [[nodiscard]] LibXR::ErrorCode StepMany(uint32_t step_count, float dt)
   {
+    if (step_count == 0U)
+    {
+      return LibXR::ErrorCode::OK;
+    }
+
     for (uint32_t i = 0; i < step_count; ++i)
     {
-      const LibXR::ErrorCode step_ret = controller.StepInto(dt, false, last_step);
+      const bool capture_result = (i + 1U == step_count);
+      const LibXR::ErrorCode step_ret = StepOne(dt, capture_result);
       if (step_ret != LibXR::ErrorCode::OK)
       {
         return step_ret;
@@ -142,6 +158,8 @@ struct DumbFocRuntime
     }
     return LibXR::ErrorCode::OK;
   }
+
+  [[nodiscard]] const BenchmarkResult& GetBenchmark() const { return benchmark; }
 
   BenchPosition position = {};
   BenchCurrent current = {};
@@ -151,6 +169,99 @@ struct DumbFocRuntime
   InverterWrapper inverter_wrap;
   FocController controller;
   FocController::StepResult last_step = {};
+
+ private:
+  static void EnableDwtCycleCounterLocal()
+  {
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+#if defined(DWT_LAR)
+    DWT->LAR = 0xC5ACCE55U;
+#endif
+    DWT->CYCCNT = 0U;
+    DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+  }
+
+  void ResetLoopState()
+  {
+    position.SetAngle(0.0f);
+    current.SetPhase(0.0f);
+    controller.ResetIntegral();
+  }
+
+  template <typename StepFn>
+  [[nodiscard]] LibXR::ErrorCode RunBenchmarkStep(StepFn&& step_fn, uint32_t warmup_loops,
+                                                  uint32_t test_loops, uint32_t& avg_cycles)
+  {
+    for (uint32_t i = 0; i < warmup_loops; ++i)
+    {
+      const LibXR::ErrorCode warmup_ret = step_fn();
+      if (warmup_ret != LibXR::ErrorCode::OK)
+      {
+        return warmup_ret;
+      }
+    }
+
+    uint32_t primask = __get_PRIMASK();
+    __disable_irq();
+    __DSB();
+    __ISB();
+
+    DWT->CYCCNT = 0U;
+    uint32_t start = DWT->CYCCNT;
+    LibXR::ErrorCode measure_ret = LibXR::ErrorCode::OK;
+    for (uint32_t i = 0; i < test_loops; ++i)
+    {
+      measure_ret = step_fn();
+      if (measure_ret != LibXR::ErrorCode::OK)
+      {
+        break;
+      }
+    }
+    uint32_t end = DWT->CYCCNT;
+
+    __DSB();
+    __ISB();
+    if (primask == 0U)
+    {
+      __enable_irq();
+    }
+
+    if (measure_ret != LibXR::ErrorCode::OK)
+    {
+      return measure_ret;
+    }
+
+    avg_cycles = (test_loops > 0U) ? ((end - start) / test_loops) : 0U;
+    return LibXR::ErrorCode::OK;
+  }
+
+  [[nodiscard]] LibXR::ErrorCode CalibrateStepCycles(uint32_t warmup_loops, uint32_t test_loops,
+                                                     float dt)
+  {
+    EnableDwtCycleCounterLocal();
+    ResetLoopState();
+    const LibXR::ErrorCode sw_ret = RunBenchmarkStep(
+        [&]() { return controller.Step(dt, false); }, warmup_loops, test_loops,
+        benchmark.step_avg_cycles);
+    if (sw_ret != LibXR::ErrorCode::OK)
+    {
+      return sw_ret;
+    }
+
+    ResetLoopState();
+    return LibXR::ErrorCode::OK;
+  }
+
+  [[nodiscard]] LibXR::ErrorCode StepOne(float dt, bool capture_result)
+  {
+    if (capture_result)
+    {
+      return controller.StepInto(dt, false, last_step);
+    }
+    return controller.Step(dt, false);
+  }
+
+  BenchmarkResult benchmark = {};
 };
 
 struct BenchInverter
@@ -211,7 +322,7 @@ void EnableDwtCycleCounter()
   DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
 }
 
-void RunFocPathBenchmark()
+void RunFocBenchmark()
 {
   using PositionWrapper = LibXR::FOC::Position<BenchPosition>;
   using CurrentWrapper = LibXR::FOC::Current<BenchCurrent>;
@@ -232,7 +343,7 @@ void RunFocPathBenchmark()
         : pos_wrap(pos), cur_wrap(cur), inv_wrap(inv, 24.0f), ctrl(pos_wrap, cur_wrap, inv_wrap)
     {
       pos.SetAngle(0.0f);
-      pos.SetDelta(0.00035f);
+      pos.SetDelta(0.00490f);
       cur.SetPhase(0.0f);
       cur.SetDelta(0.00042f);
       cur.SetAmplitude(0.8f);
@@ -240,26 +351,24 @@ void RunFocPathBenchmark()
   };
 
   FocController::Configuration cfg = {};
-  cfg.pole_pairs = 7.0f;
+  cfg.pole_pairs = 1.0f;
   cfg.electrical_offset = 0.0f;
   cfg.output_voltage_limit = 12.0f;
-  cfg.d_axis.kp = 0.2f;
-  cfg.d_axis.ki = 4.0f;
-  cfg.d_axis.integral_limit = 3.0f;
-  cfg.d_axis.output_limit = 6.0f;
+  cfg.d_axis.kp = 0.0f;
+  cfg.d_axis.ki = 0.0f;
+  cfg.d_axis.integral_limit = 0.0f;
+  cfg.d_axis.output_limit = 0.0f;
   cfg.q_axis.kp = 0.2f;
-  cfg.q_axis.ki = 4.0f;
-  cfg.q_axis.integral_limit = 3.0f;
+  cfg.q_axis.ki = 0.0f;
+  cfg.q_axis.integral_limit = 0.0f;
   cfg.q_axis.output_limit = 6.0f;
 
   auto config_controller = [&](FocController& ctrl)
   {
     ctrl.SetConfig(cfg);
-    ctrl.SetTargetIq(1.0f);
+    ctrl.SetTargetIq(2.0f);
     ctrl.SetTargetId(0.0f);
   };
-
-  constexpr std::array<uint32_t, 7> WAIT_CYCLES_LIST = {0U, 4U, 8U, 16U, 32U, 64U, 128U};
 
   constexpr uint32_t WARMUP_LOOPS = 2000U;
   constexpr uint32_t TEST_LOOPS = 20000U;
@@ -301,110 +410,14 @@ void RunFocPathBenchmark()
   };
 
   LibXR::STDIO::Printf("[FOC BENCH] loops=%lu\r\n", static_cast<unsigned long>(TEST_LOOPS));
-  LibXR::STDIO::Printf("[FOC BENCH] step(cmsis): total=%lu avg=%lu cycles duty_acc=%.6f\r\n",
+  LibXR::STDIO::Printf("[FOC BENCH] step(sw only): total=%lu avg=%lu cycles duty_acc=%.6f\r\n",
                        static_cast<unsigned long>(sw_total), static_cast<unsigned long>(sw_avg),
                        sw_rig.inv.duty_acc);
 
   print_line("[FOC BENCH] loops=%lu\r\n", static_cast<unsigned long>(TEST_LOOPS));
-  print_line("[FOC BENCH] step(cmsis): total=%lu avg=%lu cycles duty_acc=%.6f\r\n",
+  print_line("[FOC BENCH] step(sw only): total=%lu avg=%lu cycles duty_acc=%.6f\r\n",
              static_cast<unsigned long>(sw_total), static_cast<unsigned long>(sw_avg),
              static_cast<double>(sw_rig.inv.duty_acc));
-
-  uint32_t best_wait_cycles = 0U;
-  uint32_t best_cd_total = 0U;
-  uint32_t best_cd_avg = 0xFFFFFFFFU;
-  float best_duty_acc = 0.0f;
-
-  for (uint32_t wait_cycles : WAIT_CYCLES_LIST)
-  {
-    BenchRig cd_rig;
-    config_controller(cd_rig.ctrl);
-
-    LibXR::Math::STM32CordicConfig cordic_cfg = {};
-    cordic_cfg.hcordic = &hcordic;
-    cordic_cfg.precision = LL_CORDIC_PRECISION_6CYCLES;
-    cordic_cfg.trig_scale = LL_CORDIC_SCALE_0;
-    cordic_cfg.atan2_scale = LL_CORDIC_SCALE_0;
-    cordic_cfg.wait_cycles = wait_cycles;
-
-    LibXR::Math::STM32Cordic cordic(cordic_cfg);
-    cordic.ConfigureSinCosMode();
-
-    for (uint32_t i = 0; i < WARMUP_LOOPS; ++i)
-    {
-      (void)cd_rig.ctrl.StepWithTrigNoConfig(DT, false, cordic);
-    }
-
-    uint32_t cd_total = MeasureCycles(
-        [&]()
-        {
-          (void)cd_rig.ctrl.StepWithTrigNoConfig(DT, false, cordic);
-        },
-        TEST_LOOPS);
-
-    uint32_t cd_avg = cd_total / TEST_LOOPS;
-    float speedup = (cd_avg > 0U) ? (static_cast<float>(sw_avg) / static_cast<float>(cd_avg))
-                                  : 0.0f;
-
-    LibXR::STDIO::Printf(
-        "[FOC BENCH] step_with_trig_noconfig(cordic,wait=%lu): total=%lu avg=%lu cycles duty_acc=%.6f speedup(cmsis/cordic)=%.3f\r\n",
-        static_cast<unsigned long>(wait_cycles), static_cast<unsigned long>(cd_total),
-        static_cast<unsigned long>(cd_avg), cd_rig.inv.duty_acc, speedup);
-    print_line(
-        "[FOC BENCH] step_with_trig_noconfig(cordic,wait=%lu): total=%lu avg=%lu cycles duty_acc=%.6f speedup(cmsis/cordic)=%.3f\r\n",
-        static_cast<unsigned long>(wait_cycles), static_cast<unsigned long>(cd_total),
-        static_cast<unsigned long>(cd_avg), static_cast<double>(cd_rig.inv.duty_acc),
-        static_cast<double>(speedup));
-
-    if (cd_avg < best_cd_avg)
-    {
-      best_wait_cycles = wait_cycles;
-      best_cd_total = cd_total;
-      best_cd_avg = cd_avg;
-      best_duty_acc = cd_rig.inv.duty_acc;
-    }
-  }
-
-  if (best_cd_avg != 0xFFFFFFFFU)
-  {
-    float best_speedup = (best_cd_avg > 0U)
-                             ? (static_cast<float>(sw_avg) / static_cast<float>(best_cd_avg))
-                             : 0.0f;
-    float delta_percent = (sw_avg > 0U)
-                              ? ((static_cast<float>(sw_avg) - static_cast<float>(best_cd_avg)) *
-                                 100.0f / static_cast<float>(sw_avg))
-                              : 0.0f;
-
-    LibXR::STDIO::Printf(
-        "[FOC BENCH] best_cordic_wait=%lu total=%lu avg=%lu cycles duty_acc=%.6f speedup(cmsis/cordic)=%.3f\r\n",
-        static_cast<unsigned long>(best_wait_cycles), static_cast<unsigned long>(best_cd_total),
-        static_cast<unsigned long>(best_cd_avg), best_duty_acc, best_speedup);
-
-    print_line(
-        "[FOC BENCH] best_cordic_wait=%lu total=%lu avg=%lu cycles duty_acc=%.6f speedup(cmsis/cordic)=%.3f\r\n",
-        static_cast<unsigned long>(best_wait_cycles), static_cast<unsigned long>(best_cd_total),
-        static_cast<unsigned long>(best_cd_avg), static_cast<double>(best_duty_acc),
-        static_cast<double>(best_speedup));
-
-    if (best_cd_avg < sw_avg)
-    {
-      LibXR::STDIO::Printf("[FOC BENCH] verdict: CORDIC faster by %.2f%%\r\n", delta_percent);
-      print_line("[FOC BENCH] verdict: CORDIC faster by %.2f%%\r\n",
-                 static_cast<double>(delta_percent));
-    }
-    else if (best_cd_avg > sw_avg)
-    {
-      float slower_percent = -delta_percent;
-      LibXR::STDIO::Printf("[FOC BENCH] verdict: CORDIC slower by %.2f%%\r\n", slower_percent);
-      print_line("[FOC BENCH] verdict: CORDIC slower by %.2f%%\r\n",
-                 static_cast<double>(slower_percent));
-    }
-    else
-    {
-      LibXR::STDIO::Printf("[FOC BENCH] verdict: tie\r\n");
-      print_line("[FOC BENCH] verdict: tie\r\n");
-    }
-  }
 }
 }  // namespace
 
@@ -471,17 +484,29 @@ extern "C" void app_main(void) {
   constexpr bool RUN_FOC_BENCHMARK_ON_BOOT = false;
   if (RUN_FOC_BENCHMARK_ON_BOOT)
   {
-    RunFocPathBenchmark();
+    RunFocBenchmark();
   }
 
+  constexpr uint32_t FOC_TARGET_STEP_CYCLES = 900U;
   constexpr float FOC_DT = 0.00005f;  // 20kHz
   constexpr uint32_t FOC_SUBSTEPS_PER_LOOP = 20u;
   DumbFocRuntime foc_runtime(&htim1, 24.0f);
   const LibXR::ErrorCode foc_init_ret = foc_runtime.Init();
   const bool foc_runtime_ready = (foc_init_ret == LibXR::ErrorCode::OK);
   bool foc_runtime_faulted = false;
+  uint32_t step_avg_cycles = 0u;
+  uint32_t target_met = 0u;
   if (foc_runtime_ready)
   {
+    const auto& BENCH = foc_runtime.GetBenchmark();
+    step_avg_cycles = BENCH.step_avg_cycles;
+    target_met = (BENCH.step_avg_cycles <= FOC_TARGET_STEP_CYCLES) ? 1U : 0U;
+
+    rat_info("foc cycles step=%lu target=%lu met=%lu",
+             static_cast<unsigned long>(step_avg_cycles),
+             static_cast<unsigned long>(FOC_TARGET_STEP_CYCLES),
+             static_cast<unsigned long>(target_met));
+
     rat_info("dumb foc runtime ready");
   }
   else
@@ -537,6 +562,9 @@ extern "C" void app_main(void) {
         rat_sample.duty_v = 0.0f;
         rat_sample.duty_w = 0.0f;
       }
+      rat_sample.step_avg_cycles = step_avg_cycles;
+      rat_sample.target_cycles = FOC_TARGET_STEP_CYCLES;
+      rat_sample.target_met = target_met;
       RAT_EMIT(RAT_ID_RATFOCHEARTBEAT, rat_sample);
       emit_countdown = RAT_PERIOD_LOOPS;
     }

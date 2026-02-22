@@ -147,6 +147,38 @@ def parse_samples(jsonl_path: Path, packet_id: str) -> list[dict[str, float]]:
     return samples
 
 
+def parse_perf_samples(jsonl_path: Path, packet_id: str) -> list[dict[str, int]]:
+    samples: list[dict[str, int]] = []
+    with jsonl_path.open("r", encoding="utf-8") as f:
+        for line in f:
+            raw = line.strip()
+            if not raw:
+                continue
+            try:
+                item = json.loads(raw)
+            except json.JSONDecodeError:
+                continue
+            if str(item.get("id", "")).lower() != packet_id.lower():
+                continue
+            data = item.get("data")
+            if not isinstance(data, dict):
+                continue
+            required = ("step_avg_cycles", "target_cycles", "target_met")
+            if any(key not in data for key in required):
+                continue
+            try:
+                samples.append(
+                    {
+                        "step_avg_cycles": int(data["step_avg_cycles"]),
+                        "target_cycles": int(data["target_cycles"]),
+                        "target_met": int(data["target_met"]),
+                    }
+                )
+            except (TypeError, ValueError):
+                continue
+    return samples
+
+
 def finite_and_in_range(values: list[float], lower: float, upper: float) -> bool:
     for value in values:
         if not math.isfinite(value):
@@ -232,6 +264,7 @@ def build_args() -> argparse.ArgumentParser:
     parser.add_argument("--rttd-log", default=str(DEFAULT_RTTD_LOG))
     parser.add_argument("--collect-seconds", type=float, default=6.0)
     parser.add_argument("--packet-id", default="0x21")
+    parser.add_argument("--perf-packet-id", default="0x21")
     parser.add_argument("--min-samples", type=int, default=20)
     parser.add_argument("--duty-min", type=float, default=-0.02)
     parser.add_argument("--duty-max", type=float, default=1.02)
@@ -352,7 +385,7 @@ def main() -> int:
         )
 
         if args.reset_after_connect:
-            # Re-trigger boot-time schema emission when explicitly requested.
+            # Re-send boot-time schema emission when explicitly requested.
             send_openocd_telnet_command(args.rtt_host, args.openocd_telnet_port, "reset run")
 
         deadline = time.monotonic() + args.collect_seconds
@@ -378,6 +411,7 @@ def main() -> int:
         return 2
 
     samples = parse_samples(jsonl_path, args.packet_id)
+    perf_samples = parse_perf_samples(jsonl_path, args.perf_packet_id)
     ok, errors = verify_samples(
         samples=samples,
         min_samples=args.min_samples,
@@ -414,6 +448,27 @@ def main() -> int:
                 max_consecutive_jump(duty_w),
             )
         )
+
+    if not perf_samples:
+        ok = False
+        errors.append(f"no performance packet captured for id={args.perf_packet_id}")
+    else:
+        perf = perf_samples[-1]
+        print(
+            "perf: step={} target={} met={}".format(
+                perf["step_avg_cycles"],
+                perf["target_cycles"],
+                perf["target_met"],
+            )
+        )
+        if perf["step_avg_cycles"] > perf["target_cycles"]:
+            ok = False
+            errors.append(
+                f"step_avg_cycles exceeds target: {perf['step_avg_cycles']} > {perf['target_cycles']}"
+            )
+        if perf["target_met"] == 0:
+            ok = False
+            errors.append("target_met reported by firmware is 0")
 
     if ok:
         print("PASS: dumb FOC duty waveform looks stable")
