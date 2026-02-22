@@ -1,0 +1,26 @@
+[meta]
+fingerprint = "0xDA8CA12B2E20D77B"
+
+[[packets]]
+id = 33
+struct_name = "RatFocHeartbeat"
+packed = false
+byte_size = 12
+
+[[packets.fields]]
+name = "tick_ms"
+c_type = "uint32_t"
+offset = 0
+size = 4
+
+[[packets.fields]]
+name = "phase"
+c_type = "float"
+offset = 4
+size = 4
+
+[[packets.fields]]
+name = "iq_target"
+c_type = "float"
+offset = 8
+size = 4

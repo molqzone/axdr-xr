@@ -4,19 +4,24 @@
 #include <cstdarg>
 #include <cstdio>
 
-#include "arm_math.h"
 #include "cdc_uart.hpp"
 #include "controller.hpp"
 #include "cordic.h"
 #include "current.hpp"
+#include "dumb/dumb_current.hpp"
+#include "dumb/dumb_position.hpp"
+#include "flash_map.hpp"
 #include "inverter.hpp"
 #include "libxr.hpp"
 #include "main.h"
 #include "position.hpp"
+#include "rat.h"
+#include "rat_bridge.hpp"
+#include "rat_gen.h"
 #include "stm32_adc.hpp"
-#include "stm32_cordic.hpp"
 #include "stm32_can.hpp"
 #include "stm32_canfd.hpp"
+#include "stm32_cordic.hpp"
 #include "stm32_dac.hpp"
 #include "stm32_flash.hpp"
 #include "stm32_gpio.hpp"
@@ -28,7 +33,6 @@
 #include "stm32_uart.hpp"
 #include "stm32_usb_dev.hpp"
 #include "stm32_watchdog.hpp"
-#include "flash_map.hpp"
 
 using namespace LibXR;
 
@@ -57,50 +61,15 @@ static uint8_t usart3_rx_buf[128];
 
 namespace
 {
-constexpr float TWO_PI = 6.28318530717958647692f;
+using BenchPosition = LibXR::FOC::DumbPosition;
+using BenchCurrent = LibXR::FOC::DumbCurrent;
 
-struct BenchPosition
+// @rat, plot
+struct RatFocHeartbeat
 {
-  using SampleType = float;
-  float angle = 0.0f;
-  float delta = 0.00035f;
-
-  [[nodiscard]] float Read()
-  {
-    angle += delta;
-    if (angle >= TWO_PI)
-    {
-      angle -= TWO_PI;
-    }
-    return angle;
-  }
-};
-
-struct BenchCurrent
-{
-  using SampleType = LibXR::FOC::PhaseCurrentABC;
+  uint32_t tick_ms = 0u;
   float phase = 0.0f;
-  float delta = 0.00042f;
-
-  [[nodiscard]] SampleType Read()
-  {
-    phase += delta;
-    if (phase >= TWO_PI)
-    {
-      phase -= TWO_PI;
-    }
-
-    constexpr float HALF = 0.5f;
-    constexpr float SQRT3_OVER_2 = 0.8660254037844386f;
-    constexpr float AMP = 0.8f;
-    const float sin_phase = arm_sin_f32(phase);
-    const float cos_phase = arm_cos_f32(phase);
-
-    const float phase_a = AMP * sin_phase;
-    const float phase_b = AMP * (-HALF * sin_phase - SQRT3_OVER_2 * cos_phase);
-    const float phase_c = AMP * (-HALF * sin_phase + SQRT3_OVER_2 * cos_phase);
-    return {phase_a, phase_b, phase_c};
-  }
+  float iq_target = 1.0f;
 };
 
 struct BenchInverter
@@ -181,6 +150,11 @@ void RunFocPathBenchmark()
     BenchRig()
         : pos_wrap(pos), cur_wrap(cur), inv_wrap(inv, 24.0f), ctrl(pos_wrap, cur_wrap, inv_wrap)
     {
+      pos.SetAngle(0.0f);
+      pos.SetDelta(0.00035f);
+      cur.SetPhase(0.0f);
+      cur.SetDelta(0.00042f);
+      cur.SetAmplitude(0.8f);
     }
   };
 
@@ -411,9 +385,52 @@ extern "C" void app_main(void) {
   // clang-format on
   // NOLINTEND
   /* User Code Begin 3 */
-  RunFocPathBenchmark();
-  while(true) {
-    Thread::Sleep(UINT32_MAX);
+  RatBridge::Init();
+  rat_info("axdr-xr boot");
+  constexpr bool RUN_FOC_BENCHMARK_ON_BOOT = false;
+  if (RUN_FOC_BENCHMARK_ON_BOOT)
+  {
+    RunFocPathBenchmark();
+  }
+
+  RatFocHeartbeat rat_sample = {};
+  uint32_t loop_counter = 0u;
+  uint32_t emit_countdown = 0u;
+  uint32_t schema_countdown = 0u;
+  constexpr uint32_t RAT_PERIOD_LOOPS = 20u;
+  constexpr uint32_t RAT_SCHEMA_SYNC_INTERVAL_LOOPS = 1000u;
+  constexpr float RAT_PHASE_STEP = 0.05f;
+  constexpr float TWO_PI = 6.28318530717958647692f;
+  while (true)
+  {
+    if (schema_countdown == 0u)
+    {
+      RatBridge::SyncSchema();
+      schema_countdown = RAT_SCHEMA_SYNC_INTERVAL_LOOPS;
+    }
+    if (schema_countdown > 0u)
+    {
+      --schema_countdown;
+    }
+
+    if (emit_countdown == 0u)
+    {
+      rat_sample.tick_ms = loop_counter;
+      rat_sample.phase += RAT_PHASE_STEP;
+      if (rat_sample.phase >= TWO_PI)
+      {
+        rat_sample.phase -= TWO_PI;
+      }
+      rat_sample.iq_target = 1.0f;
+      RAT_EMIT(RAT_ID_RATFOCHEARTBEAT, rat_sample);
+      emit_countdown = RAT_PERIOD_LOOPS;
+    }
+    if (emit_countdown > 0u)
+    {
+      --emit_countdown;
+    }
+    ++loop_counter;
+    Thread::Sleep(1u);
   }
 
   /* User Code End 3 */

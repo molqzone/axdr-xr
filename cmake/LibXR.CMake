@@ -7,6 +7,7 @@ set(LIBXR_DRIVER st)
 set(XROBOT_MODULES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Modules)
 set(XRFOC_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/Middlewares/Third_Party/XRFOC)
 set(XRMATH_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/Middlewares/Third_Party/XRMath)
+set(LIBRAT_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/Middlewares/Third_Party/librat)
 set(CMSIS_DSP_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/Middlewares/Third_Party/CMSIS-DSP)
 set(XRFOC_INCLUDE_DIRS
     ${XRFOC_ROOT}/src
@@ -26,6 +27,10 @@ set(XRMATH_CMSIS_DSP_C_SOURCES
     ${CMSIS_DSP_ROOT}/Source/FastMathFunctions/arm_atan2_f32.c)
 
 add_subdirectory(Middlewares/Third_Party/LibXR)
+add_subdirectory(${LIBRAT_ROOT} ${CMAKE_BINARY_DIR}/librat)
+target_include_directories(librat PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/User
+)
 target_link_libraries(xr
     PUBLIC stm32cubemx
 )
@@ -51,6 +56,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
 
     # Add user defined libraries
     xr
+    librat
 )
 
 file(

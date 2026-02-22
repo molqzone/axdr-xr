@@ -16,3 +16,6 @@
 	path = Middlewares/Third_Party/XRMath
 	url = https://github.com/molqzone/XRMath
 	branch = main
+[submodule "Middlewares/Third_Party/librat"]
+	path = Middlewares/Third_Party/librat
+	url = https://github.com/molqzone/librat
