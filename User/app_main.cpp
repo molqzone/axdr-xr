@@ -18,6 +18,7 @@
 #include "rat.h"
 #include "rat_bridge.hpp"
 #include "rat_gen.h"
+#include "st/stm32_inverter.hpp"
 #include "stm32_adc.hpp"
 #include "stm32_can.hpp"
 #include "stm32_canfd.hpp"
@@ -68,8 +69,88 @@ using BenchCurrent = LibXR::FOC::DumbCurrent;
 struct RatFocHeartbeat
 {
   uint32_t tick_ms = 0u;
-  float phase = 0.0f;
+  float electrical_angle = 0.0f;
   float iq_target = 1.0f;
+  float duty_u = 0.0f;
+  float duty_v = 0.0f;
+  float duty_w = 0.0f;
+};
+
+struct DumbFocRuntime
+{
+  using PositionWrapper = LibXR::FOC::Position<BenchPosition>;
+  using CurrentWrapper = LibXR::FOC::Current<BenchCurrent>;
+  using InverterWrapper = LibXR::FOC::Inverter<LibXR::FOC::STM32Inverter>;
+  using FocController = LibXR::FOC::Controller<PositionWrapper, CurrentWrapper, InverterWrapper>;
+
+  explicit DumbFocRuntime(TIM_HandleTypeDef* htim, float bus_voltage)
+      : inverter_handle(htim, bus_voltage),
+        position_wrap(position),
+        current_wrap(current),
+        inverter_wrap(inverter_handle, bus_voltage),
+        controller(position_wrap, current_wrap, inverter_wrap)
+  {
+  }
+
+  [[nodiscard]] LibXR::ErrorCode Init()
+  {
+    position.SetAngle(0.0f);
+    position.SetDelta(0.00035f);
+    current.SetPhase(0.0f);
+    current.SetDelta(0.00042f);
+    current.SetAmplitude(0.8f);
+
+    LibXR::FOC::STM32Inverter::Configuration inverter_cfg = {};
+    inverter_cfg.frequency_hz = 20000U;
+    inverter_cfg.center_aligned = true;
+    inverter_cfg.complementary_output = true;
+    inverter_cfg.deadtime = 0U;
+    const LibXR::ErrorCode inverter_init_ret = inverter_handle.Init(inverter_cfg);
+    if (inverter_init_ret != LibXR::ErrorCode::OK)
+    {
+      return inverter_init_ret;
+    }
+
+    FocController::Configuration cfg = {};
+    cfg.pole_pairs = 7.0f;
+    cfg.electrical_offset = 0.0f;
+    cfg.output_voltage_limit = 12.0f;
+    cfg.d_axis.kp = 0.2f;
+    cfg.d_axis.ki = 4.0f;
+    cfg.d_axis.integral_limit = 3.0f;
+    cfg.d_axis.output_limit = 6.0f;
+    cfg.q_axis.kp = 0.2f;
+    cfg.q_axis.ki = 4.0f;
+    cfg.q_axis.integral_limit = 3.0f;
+    cfg.q_axis.output_limit = 6.0f;
+    controller.SetConfig(cfg);
+    controller.SetTargetIq(1.0f);
+    controller.SetTargetId(0.0f);
+
+    return controller.EnablePowerStage(false);
+  }
+
+  [[nodiscard]] LibXR::ErrorCode StepMany(uint32_t step_count, float dt)
+  {
+    for (uint32_t i = 0; i < step_count; ++i)
+    {
+      const LibXR::ErrorCode step_ret = controller.StepInto(dt, false, last_step);
+      if (step_ret != LibXR::ErrorCode::OK)
+      {
+        return step_ret;
+      }
+    }
+    return LibXR::ErrorCode::OK;
+  }
+
+  BenchPosition position = {};
+  BenchCurrent current = {};
+  LibXR::FOC::STM32Inverter inverter_handle;
+  PositionWrapper position_wrap;
+  CurrentWrapper current_wrap;
+  InverterWrapper inverter_wrap;
+  FocController controller;
+  FocController::StepResult last_step = {};
 };
 
 struct BenchInverter
@@ -393,16 +474,39 @@ extern "C" void app_main(void) {
     RunFocPathBenchmark();
   }
 
+  constexpr float FOC_DT = 0.00005f;  // 20kHz
+  constexpr uint32_t FOC_SUBSTEPS_PER_LOOP = 20u;
+  DumbFocRuntime foc_runtime(&htim1, 24.0f);
+  const LibXR::ErrorCode foc_init_ret = foc_runtime.Init();
+  const bool foc_runtime_ready = (foc_init_ret == LibXR::ErrorCode::OK);
+  bool foc_runtime_faulted = false;
+  if (foc_runtime_ready)
+  {
+    rat_info("dumb foc runtime ready");
+  }
+  else
+  {
+    rat_info("dumb foc runtime init failed=%d", static_cast<int>(foc_init_ret));
+  }
+
   RatFocHeartbeat rat_sample = {};
   uint32_t loop_counter = 0u;
   uint32_t emit_countdown = 0u;
   uint32_t schema_countdown = 0u;
-  constexpr uint32_t RAT_PERIOD_LOOPS = 20u;
-  constexpr uint32_t RAT_SCHEMA_SYNC_INTERVAL_LOOPS = 1000u;
-  constexpr float RAT_PHASE_STEP = 0.05f;
-  constexpr float TWO_PI = 6.28318530717958647692f;
+  constexpr uint32_t RAT_PERIOD_LOOPS = 5u;
+  constexpr uint32_t RAT_SCHEMA_SYNC_INTERVAL_LOOPS = 5000u;
   while (true)
   {
+    if (foc_runtime_ready && !foc_runtime_faulted)
+    {
+      const LibXR::ErrorCode step_ret = foc_runtime.StepMany(FOC_SUBSTEPS_PER_LOOP, FOC_DT);
+      if (step_ret != LibXR::ErrorCode::OK)
+      {
+        foc_runtime_faulted = true;
+        rat_info("dumb foc runtime fault=%d", static_cast<int>(step_ret));
+      }
+    }
+
     if (schema_countdown == 0u)
     {
       RatBridge::SyncSchema();
@@ -416,12 +520,23 @@ extern "C" void app_main(void) {
     if (emit_countdown == 0u)
     {
       rat_sample.tick_ms = loop_counter;
-      rat_sample.phase += RAT_PHASE_STEP;
-      if (rat_sample.phase >= TWO_PI)
+      if (foc_runtime_ready)
       {
-        rat_sample.phase -= TWO_PI;
+        const auto& STEP = foc_runtime.last_step;
+        rat_sample.electrical_angle = STEP.electrical_angle;
+        rat_sample.iq_target = STEP.target_current_dq.q;
+        rat_sample.duty_u = STEP.duty.u;
+        rat_sample.duty_v = STEP.duty.v;
+        rat_sample.duty_w = STEP.duty.w;
       }
-      rat_sample.iq_target = 1.0f;
+      else
+      {
+        rat_sample.electrical_angle = 0.0f;
+        rat_sample.iq_target = 0.0f;
+        rat_sample.duty_u = 0.0f;
+        rat_sample.duty_v = 0.0f;
+        rat_sample.duty_w = 0.0f;
+      }
       RAT_EMIT(RAT_ID_RATFOCHEARTBEAT, rat_sample);
       emit_countdown = RAT_PERIOD_LOOPS;
     }
