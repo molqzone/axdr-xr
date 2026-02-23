@@ -1,5 +1,6 @@
 #include "app_main.h"
 
+#include <cinttypes>
 #include <cstdarg>
 #include <cstdio>
 
@@ -491,27 +492,27 @@ extern "C" void app_main(void) {
   constexpr float FOC_DT = 0.00005f;  // 20kHz
   constexpr uint32_t FOC_SUBSTEPS_PER_LOOP = 20u;
   DumbFocRuntime foc_runtime(&htim1, 24.0f);
-  const LibXR::ErrorCode foc_init_ret = foc_runtime.Init();
-  const bool foc_runtime_ready = (foc_init_ret == LibXR::ErrorCode::OK);
+  const LibXR::ErrorCode FOC_INIT_RET = foc_runtime.Init();
+  const bool FOC_RUNTIME_READY = (FOC_INIT_RET == LibXR::ErrorCode::OK);
   bool foc_runtime_faulted = false;
   uint32_t step_avg_cycles = 0u;
   uint32_t target_met = 0u;
-  if (foc_runtime_ready)
+  if (FOC_RUNTIME_READY)
   {
-    const auto& BENCH = foc_runtime.GetBenchmark();
-    step_avg_cycles = BENCH.step_avg_cycles;
-    target_met = (BENCH.step_avg_cycles <= FOC_TARGET_STEP_CYCLES) ? 1U : 0U;
+    const auto& bench = foc_runtime.GetBenchmark();
+    step_avg_cycles = bench.step_avg_cycles;
+    target_met = (bench.step_avg_cycles <= FOC_TARGET_STEP_CYCLES) ? 1U : 0U;
 
-    rat_info("foc cycles step=%lu target=%lu met=%lu",
-             static_cast<unsigned long>(step_avg_cycles),
-             static_cast<unsigned long>(FOC_TARGET_STEP_CYCLES),
-             static_cast<unsigned long>(target_met));
+    rat_info("foc cycles step=%" PRIu32 " target=%" PRIu32 " met=%" PRIu32,
+             step_avg_cycles,
+             FOC_TARGET_STEP_CYCLES,
+             target_met);
 
     rat_info("dumb foc runtime ready");
   }
   else
   {
-    rat_info("dumb foc runtime init failed=%d", static_cast<int>(foc_init_ret));
+    rat_info("dumb foc runtime init failed=%d", static_cast<int>(FOC_INIT_RET));
   }
 
   RatFocHeartbeat rat_sample = {};
@@ -522,13 +523,13 @@ extern "C" void app_main(void) {
   constexpr uint32_t RAT_SCHEMA_SYNC_INTERVAL_LOOPS = 5000u;
   while (true)
   {
-    if (foc_runtime_ready && !foc_runtime_faulted)
+    if (FOC_RUNTIME_READY && !foc_runtime_faulted)
     {
-      const LibXR::ErrorCode step_ret = foc_runtime.StepMany(FOC_SUBSTEPS_PER_LOOP, FOC_DT);
-      if (step_ret != LibXR::ErrorCode::OK)
+      const LibXR::ErrorCode STEP_RET = foc_runtime.StepMany(FOC_SUBSTEPS_PER_LOOP, FOC_DT);
+      if (STEP_RET != LibXR::ErrorCode::OK)
       {
         foc_runtime_faulted = true;
-        rat_info("dumb foc runtime fault=%d", static_cast<int>(step_ret));
+        rat_info("dumb foc runtime fault=%d", static_cast<int>(STEP_RET));
       }
     }
 
@@ -545,14 +546,14 @@ extern "C" void app_main(void) {
     if (emit_countdown == 0u)
     {
       rat_sample.tick_ms = loop_counter;
-      if (foc_runtime_ready)
+      if (FOC_RUNTIME_READY)
       {
-        const auto& STEP = foc_runtime.last_step;
-        rat_sample.electrical_angle = STEP.electrical_angle;
-        rat_sample.iq_target = STEP.target_current_dq.q;
-        rat_sample.duty_u = STEP.duty.u;
-        rat_sample.duty_v = STEP.duty.v;
-        rat_sample.duty_w = STEP.duty.w;
+        const auto& step = foc_runtime.last_step;
+        rat_sample.electrical_angle = step.electrical_angle;
+        rat_sample.iq_target = step.target_current_dq.q;
+        rat_sample.duty_u = step.duty.u;
+        rat_sample.duty_v = step.duty.v;
+        rat_sample.duty_w = step.duty.w;
       }
       else
       {
